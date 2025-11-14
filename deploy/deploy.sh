@@ -204,7 +204,9 @@ echo "📋 Копируем конфигурацию nginx..."
 scp deploy/nginx.conf $SERVER:/tmp/air-nginx.conf
 
 echo "⚙️ Настраиваем nginx на сервере..."
-ssh $SERVER bash << 'ENDSSH'
+ssh $SERVER bash << ENDSSH
+    PROJECT_DIR="$PROJECT_DIR"
+    
     echo "🔧 Проверяем nginx..."
     if ! command -v nginx &> /dev/null; then
         echo "📦 Устанавливаем nginx..."
@@ -226,7 +228,7 @@ ssh $SERVER bash << 'ENDSSH'
     sudo systemctl reload nginx
 
     echo "📊 Статус Docker контейнеров:"
-    cd \$PROJECT_DIR
+    cd "\$PROJECT_DIR"
     if sudo docker ps &> /dev/null; then
         if command -v docker-compose &> /dev/null; then
             sudo docker-compose ps || true
