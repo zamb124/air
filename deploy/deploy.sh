@@ -5,6 +5,7 @@ set -e
 SERVER="zambas124@158.160.120.116"
 PROJECT_DIR="/home/zambas124/air"
 REPO_URL="https://github.com/zamb124/air.git"
+DOMAIN="${DOMAIN:-omnistore.su}"  # По умолчанию используем omnistore.su, можно переопределить через переменную окружения
 
 IS_REMOTE=false
 if [ -d "$PROJECT_DIR" ] && [ -f "$PROJECT_DIR/docker-compose.yml" ]; then
@@ -102,15 +103,190 @@ deploy_local() {
     
     echo "✅ Docker контейнер пересобран и запущен"
     
+    echo "🔒 Настраиваем SSL для nginx..."
+    SERVER_IP="158.160.120.116"
+    DOMAIN="${DOMAIN:-omnistore.su}"
+    SSL_CONFIG=""
+    
+    if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "158.160.120.116" ]; then
+        echo "📦 Устанавливаем certbot для Let's Encrypt..."
+        if ! command -v certbot &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y certbot python3-certbot-nginx
+        fi
+        
+        echo "🔐 Получаем SSL сертификат для домена $DOMAIN..."
+        if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+            if sudo certbot certonly --nginx -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --redirect 2>&1; then
+                echo "✅ SSL сертификат успешно получен для $DOMAIN"
+            else
+                echo "❌ Не удалось получить сертификат для $DOMAIN"
+                DOMAIN=""
+            fi
+        else
+            echo "✅ SSL сертификат уже существует для $DOMAIN"
+        fi
+        
+        if [ -n "$DOMAIN" ] && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+            echo "✅ Используем SSL сертификат Let's Encrypt для $DOMAIN"
+            SSL_CONFIG="ssl"
+            SERVER_NAME="$DOMAIN"
+        else
+            echo "⚠️  Используем самоподписанный сертификат"
+            DOMAIN=""
+        fi
+    fi
+    
+    if [ -z "$DOMAIN" ] || [ -z "$SSL_CONFIG" ]; then
+        echo "🔐 Создаем самоподписанный SSL сертификат..."
+        sudo mkdir -p /etc/nginx/ssl
+        if [ ! -f "/etc/nginx/ssl/selfsigned.crt" ]; then
+            sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout /etc/nginx/ssl/selfsigned.key \
+                -out /etc/nginx/ssl/selfsigned.crt \
+                -subj "/C=RU/ST=State/L=City/O=Organization/CN=$SERVER_IP"
+            echo "✅ Самоподписанный сертификат создан"
+        fi
+        SSL_CONFIG="ssl-selfsigned"
+        SERVER_NAME="$SERVER_IP"
+    fi
+    
+    echo "🔧 Настраиваем nginx с SSL..."
+    sudo mkdir -p /etc/nginx/sites-available
+    sudo mkdir -p /etc/nginx/sites-enabled
+    
+    if [ "$SSL_CONFIG" = "ssl" ]; then
+        sudo tee /etc/nginx/sites-available/air > /dev/null << NGINX_EOF
+server {
+    listen 80;
+    server_name $SERVER_NAME;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name $SERVER_NAME;
+
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    client_max_body_size 10M;
+
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    location /health {
+        proxy_pass http://127.0.0.1:8001/;
+        access_log off;
+    }
+}
+NGINX_EOF
+    else
+        sudo tee /etc/nginx/sites-available/air > /dev/null << NGINX_EOF
+server {
+    listen 80;
+    server_name $SERVER_NAME;
+
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name $SERVER_NAME;
+
+    ssl_certificate /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    client_max_body_size 10M;
+
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    location /health {
+        proxy_pass http://127.0.0.1:8001/;
+        access_log off;
+    }
+}
+NGINX_EOF
+    fi
+    
+    if [ -f /etc/nginx/sites-enabled/air ]; then
+        sudo rm /etc/nginx/sites-enabled/air
+    fi
+    sudo ln -s /etc/nginx/sites-available/air /etc/nginx/sites-enabled/
+    
+    echo "🔍 Проверяем конфигурацию nginx..."
+    if sudo nginx -t; then
+        echo "✅ Конфигурация nginx валидна, перезагружаем..."
+        sudo systemctl reload nginx
+    else
+        echo "❌ Ошибка в конфигурации nginx!"
+        exit 1
+    fi
+    
+    if [ "$SSL_CONFIG" = "ssl" ]; then
+        echo "🔄 Настраиваем автоматическое обновление сертификата Let's Encrypt..."
+        (crontab -l 2>/dev/null | grep -v "certbot renew" ; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab - || true
+        echo "✅ Автообновление сертификата настроено (каждую ночь в 3:00)"
+    fi
+    
     echo "📊 Статус Docker контейнеров:"
     $COMPOSE_CMD ps
+    
+    echo "✅ Деплой завершен!"
+    if [ -n "$DOMAIN" ]; then
+        echo "🌐 Сервис доступен по адресу: https://$DOMAIN"
+    else
+        echo "🌐 Сервис доступен по адресу:"
+        echo "   HTTP: http://$SERVER_IP (редирект на HTTPS)"
+        echo "   HTTPS: https://$SERVER_IP (самоподписанный сертификат)"
+    fi
 }
 
 deploy_remote() {
     echo "🚀 Начинаем деплой на сервер..."
 
 echo "📦 Подключение к серверу и клонирование/обновление репозитория..."
-ssh $SERVER bash << ENDSSH
+ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 $SERVER bash << ENDSSH
     PROJECT_DIR="$PROJECT_DIR"
     REPO_URL="$REPO_URL"
     
@@ -200,12 +376,11 @@ ssh $SERVER bash << ENDSSH
     echo "✅ Docker контейнер пересобран и запущен"
 ENDSSH
 
-echo "📋 Копируем конфигурацию nginx..."
-scp deploy/nginx.conf $SERVER:/tmp/air-nginx.conf
-
-echo "⚙️ Настраиваем nginx на сервере..."
-ssh $SERVER bash << ENDSSH
+echo "⚙️ Настраиваем nginx и SSL на сервере..."
+ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 $SERVER bash << ENDSSH
     PROJECT_DIR="$PROJECT_DIR"
+    DOMAIN="${DOMAIN:-omnistore.su}"
+    SERVER_IP="158.160.120.116"
     
     echo "🔧 Проверяем nginx..."
     if ! command -v nginx &> /dev/null; then
@@ -216,16 +391,175 @@ ssh $SERVER bash << ENDSSH
         sudo systemctl enable nginx
     fi
     
-    echo "🔧 Настраиваем nginx..."
+    echo "🔒 Настраиваем SSL для домена: \$DOMAIN"
+    SSL_CONFIG=""
+    
+    if [ -n "\$DOMAIN" ] && [ "\$DOMAIN" != "158.160.120.116" ]; then
+        echo "📦 Устанавливаем certbot для Let's Encrypt..."
+        if ! command -v certbot &> /dev/null; then
+            sudo apt-get install -y certbot python3-certbot-nginx
+        fi
+        
+        echo "🔐 Получаем SSL сертификат для домена \$DOMAIN..."
+        if [ ! -f "/etc/letsencrypt/live/\$DOMAIN/fullchain.pem" ]; then
+            echo "⚠️  Убедитесь, что домен \$DOMAIN указывает на IP \$SERVER_IP"
+            echo "⚠️  Убедитесь, что порты 80 и 443 открыты в firewall"
+            if sudo certbot certonly --nginx -d \$DOMAIN --non-interactive --agree-tos --email admin@\$DOMAIN --redirect 2>&1; then
+                echo "✅ SSL сертификат успешно получен для \$DOMAIN"
+            else
+                echo "❌ Не удалось получить сертификат. Проверьте:"
+                echo "   1. Домен \$DOMAIN указывает на \$SERVER_IP"
+                echo "   2. Порты 80 и 443 открыты"
+                echo "   3. DNS записи распространились (может занять до 24 часов)"
+                DOMAIN=""
+            fi
+        else
+            echo "✅ SSL сертификат уже существует для \$DOMAIN"
+        fi
+        
+        if [ -n "\$DOMAIN" ] && [ -f "/etc/letsencrypt/live/\$DOMAIN/fullchain.pem" ]; then
+            echo "✅ Используем SSL сертификат Let's Encrypt для \$DOMAIN"
+            SSL_CONFIG="ssl"
+            SERVER_NAME="\$DOMAIN"
+        else
+            echo "⚠️  Используем самоподписанный сертификат"
+            DOMAIN=""
+        fi
+    fi
+    
+    if [ -z "\$DOMAIN" ] || [ -z "\$SSL_CONFIG" ]; then
+        echo "🔐 Создаем самоподписанный SSL сертификат..."
+        sudo mkdir -p /etc/nginx/ssl
+        if [ ! -f "/etc/nginx/ssl/selfsigned.crt" ]; then
+            sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout /etc/nginx/ssl/selfsigned.key \
+                -out /etc/nginx/ssl/selfsigned.crt \
+                -subj "/C=RU/ST=State/L=City/O=Organization/CN=\$SERVER_IP"
+            echo "✅ Самоподписанный сертификат создан"
+        fi
+        SSL_CONFIG="ssl-selfsigned"
+        SERVER_NAME="\$SERVER_IP"
+    fi
+    
+    echo "🔧 Настраиваем nginx с SSL..."
     sudo mkdir -p /etc/nginx/sites-available
     sudo mkdir -p /etc/nginx/sites-enabled
-    sudo mv /tmp/air-nginx.conf /etc/nginx/sites-available/air
+    
+    if [ "\$SSL_CONFIG" = "ssl" ]; then
+        cat > /tmp/air-nginx-ssl.conf << NGINX_EOF
+server {
+    listen 80;
+    server_name \$SERVER_NAME;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://\\\$host\\\$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name \$SERVER_NAME;
+
+    ssl_certificate /etc/letsencrypt/live/\$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/\$DOMAIN/privkey.pem;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    client_max_body_size 10M;
+
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host \\\$host;
+        proxy_set_header X-Real-IP \\\$remote_addr;
+        proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \\\$scheme;
+        
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    location /health {
+        proxy_pass http://127.0.0.1:8001/;
+        access_log off;
+    }
+}
+NGINX_EOF
+        sudo mv /tmp/air-nginx-ssl.conf /etc/nginx/sites-available/air
+    else
+        cat > /tmp/air-nginx-ssl.conf << NGINX_EOF
+server {
+    listen 80;
+    server_name \$SERVER_NAME;
+
+    location / {
+        return 301 https://\\\$host\\\$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name \$SERVER_NAME;
+
+    ssl_certificate /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    client_max_body_size 10M;
+
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host \\\$host;
+        proxy_set_header X-Real-IP \\\$remote_addr;
+        proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \\\$scheme;
+        
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    location /health {
+        proxy_pass http://127.0.0.1:8001/;
+        access_log off;
+    }
+}
+NGINX_EOF
+        sudo mv /tmp/air-nginx-ssl.conf /etc/nginx/sites-available/air
+    fi
+    
     if [ -f /etc/nginx/sites-enabled/air ]; then
         sudo rm /etc/nginx/sites-enabled/air
     fi
     sudo ln -s /etc/nginx/sites-available/air /etc/nginx/sites-enabled/
-    sudo nginx -t
-    sudo systemctl reload nginx
+    
+    echo "🔍 Проверяем конфигурацию nginx..."
+    if sudo nginx -t; then
+        echo "✅ Конфигурация nginx валидна, перезагружаем..."
+        sudo systemctl reload nginx
+    else
+        echo "❌ Ошибка в конфигурации nginx!"
+        exit 1
+    fi
+    
+    if [ "\$SSL_CONFIG" = "ssl" ]; then
+        echo "🔄 Настраиваем автоматическое обновление сертификата Let's Encrypt..."
+        (crontab -l 2>/dev/null | grep -v "certbot renew" ; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab - || true
+        echo "✅ Автообновление сертификата настроено (каждую ночь в 3:00)"
+    fi
 
     echo "📊 Статус Docker контейнеров:"
     cd "\$PROJECT_DIR"
@@ -247,7 +581,13 @@ ssh $SERVER bash << ENDSSH
 ENDSSH
 
     echo "✅ Деплой завершен!"
-    echo "🌐 Сервис доступен по адресу: http://158.160.120.116"
+    if [ -n "$DOMAIN" ]; then
+        echo "🌐 Сервис доступен по адресу: https://$DOMAIN"
+    else
+        echo "🌐 Сервис доступен по адресу:"
+        echo "   HTTP: http://158.160.120.116 (редирект на HTTPS)"
+        echo "   HTTPS: https://158.160.120.116 (самоподписанный сертификат)"
+    fi
 }
 
 DEPLOY_FUNC
