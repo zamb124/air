@@ -8,7 +8,7 @@ from app.routers import flights, weather
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-UPDATE_INTERVAL_SECONDS = 60
+UPDATE_INTERVAL_SECONDS = 120
 
 
 async def background_updater():
