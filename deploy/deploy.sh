@@ -83,8 +83,22 @@ deploy_local() {
     
     echo "Используем команду: $COMPOSE_CMD"
     $COMPOSE_CMD down || true
+    
     $COMPOSE_CMD build --no-cache --pull
     $COMPOSE_CMD up -d
+    
+    echo "🧹 Удаляем старые неиспользуемые образы проекта..."
+    USED_IMAGE_ID=$($DOCKER_CMD inspect air-api --format='{{.Image}}' 2>/dev/null || echo "")
+    if [ -n "$USED_IMAGE_ID" ]; then
+        $DOCKER_CMD images "air-air" --format "{{.ID}}" | while read IMAGE_ID; do
+            if [ "$IMAGE_ID" != "$USED_IMAGE_ID" ]; then
+                $DOCKER_CMD rmi -f "$IMAGE_ID" 2>/dev/null || true
+            fi
+        done
+    fi
+    
+    echo "🧹 Очищаем dangling образы и неиспользуемый кэш..."
+    $DOCKER_CMD image prune -f || true
     
     echo "✅ Docker контейнер пересобран и запущен"
     
@@ -166,8 +180,22 @@ ssh $SERVER bash << ENDSSH
     
     echo "Используем команду: \$COMPOSE_CMD"
     \$COMPOSE_CMD down || true
+    
     \$COMPOSE_CMD build --no-cache --pull
     \$COMPOSE_CMD up -d
+    
+    echo "🧹 Удаляем старые неиспользуемые образы проекта..."
+    USED_IMAGE_ID=\$(\$DOCKER_CMD inspect air-api --format='{{.Image}}' 2>/dev/null || echo "")
+    if [ -n "\$USED_IMAGE_ID" ]; then
+        \$DOCKER_CMD images "air-air" --format "{{.ID}}" | while read IMAGE_ID; do
+            if [ "\$IMAGE_ID" != "\$USED_IMAGE_ID" ]; then
+                \$DOCKER_CMD rmi -f "\$IMAGE_ID" 2>/dev/null || true
+            fi
+        done
+    fi
+    
+    echo "🧹 Очищаем dangling образы и неиспользуемый кэш..."
+    \$DOCKER_CMD image prune -f || true
 
     echo "✅ Docker контейнер пересобран и запущен"
 ENDSSH
@@ -198,17 +226,18 @@ ssh $SERVER bash << 'ENDSSH'
     sudo systemctl reload nginx
 
     echo "📊 Статус Docker контейнеров:"
+    cd \$PROJECT_DIR
     if sudo docker ps &> /dev/null; then
         if command -v docker-compose &> /dev/null; then
-            sudo docker-compose ps
+            sudo docker-compose ps || true
         else
-            sudo docker compose ps
+            sudo docker compose ps || true
         fi
     elif docker ps &> /dev/null 2>&1; then
         if command -v docker-compose &> /dev/null; then
-            docker-compose ps
+            docker-compose ps || true
         else
-            docker compose ps
+            docker compose ps || true
         fi
     else
         echo "⚠️  Не удалось проверить статус контейнеров"
