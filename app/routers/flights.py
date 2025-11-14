@@ -12,7 +12,7 @@ async def get_flights(
     flight_number: Optional[str] = Query(None, description="Фильтр по номеру рейса"),
     has_delay: Optional[bool] = Query(None, description="Фильтр по наличию задержки")
 ):
-    flights = get_flights_from_db("flight", flight_number, has_delay)
+    flights = await get_flights_from_db("flight", flight_number, has_delay)
     flights = sorted(flights, key=lambda x: x.scheduled_time if x.scheduled_time else datetime.min)
     return FlightListResponse(flights=flights, total=len(flights))
 
@@ -28,7 +28,7 @@ async def get_all_flights(
     flight_number: Optional[str] = Query(None, description="Фильтр по номеру рейса"),
     has_delay: Optional[bool] = Query(None, description="Фильтр по наличию задержки")
 ):
-    flights = get_flights_from_db("flight", flight_number, has_delay)
+    flights = await get_flights_from_db("flight", flight_number, has_delay)
     flights = sorted(flights, key=lambda x: x.scheduled_time if x.scheduled_time else datetime.min)
     return FlightListResponse(flights=flights, total=len(flights))
 
@@ -38,7 +38,7 @@ async def get_departures(
     flight_number: Optional[str] = Query(None, description="Фильтр по номеру рейса"),
     has_delay: Optional[bool] = Query(None, description="Фильтр по наличию задержки")
 ):
-    flights = get_flights_from_db("flight", flight_number, has_delay)
+    flights = await get_flights_from_db("flight", flight_number, has_delay)
     flights = sorted(flights, key=lambda x: x.scheduled_time if x.scheduled_time else datetime.min)
     return FlightListResponse(flights=flights, total=len(flights))
 
@@ -48,7 +48,6 @@ async def get_arrivals(
     flight_number: Optional[str] = Query(None, description="Фильтр по номеру рейса"),
     has_delay: Optional[bool] = Query(None, description="Фильтр по наличию задержки")
 ):
-    flights = get_flights_from_db("flight", flight_number, has_delay)
+    flights = await get_flights_from_db("flight", flight_number, has_delay)
     flights = sorted(flights, key=lambda x: x.scheduled_time if x.scheduled_time else datetime.min)
     return FlightListResponse(flights=flights, total=len(flights))
-

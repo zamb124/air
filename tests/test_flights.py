@@ -70,7 +70,9 @@ def test_get_arrivals_with_filters():
 
 @patch('app.routers.flights.update_flights_data')
 def test_manual_update(mock_update):
-    mock_update.return_value = None
+    async def mock_update_func():
+        pass
+    mock_update.side_effect = mock_update_func
     response = client.post("/flights/update")
     assert response.status_code == 200
     data = response.json()

@@ -1,4 +1,4 @@
-import sqlite3
+import aiosqlite
 import os
 from pathlib import Path
 
@@ -14,42 +14,39 @@ def get_db_path():
 DB_PATH = get_db_path()
 
 
-def init_db():
+async def init_db():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     db_path = get_db_path()
-    conn = sqlite3.connect(str(db_path))
-    cursor = conn.cursor()
     
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS flights (
-            flight_id TEXT PRIMARY KEY,
-            flight_number TEXT NOT NULL,
-            destination TEXT,
-            origin TEXT,
-            scheduled_time TEXT,
-            actual_time TEXT,
-            status TEXT NOT NULL,
-            gate TEXT,
-            terminal TEXT,
-            delay_minutes INTEGER,
-            flight_type TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_flight_type ON flights(flight_type)
-    """)
-    
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_updated_at ON flights(updated_at)
-    """)
-    
-    conn.commit()
-    conn.close()
+    async with aiosqlite.connect(str(db_path)) as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS flights (
+                flight_id TEXT PRIMARY KEY,
+                flight_number TEXT NOT NULL,
+                destination TEXT,
+                origin TEXT,
+                scheduled_time TEXT,
+                actual_time TEXT,
+                status TEXT NOT NULL,
+                gate TEXT,
+                terminal TEXT,
+                delay_minutes INTEGER,
+                flight_type TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_flight_type ON flights(flight_type)
+        """)
+        
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_updated_at ON flights(updated_at)
+        """)
+        
+        await conn.commit()
 
 
-def get_db_connection():
+async def get_db_connection():
     db_path = get_db_path()
-    return sqlite3.connect(str(db_path), check_same_thread=False)
-
+    return await aiosqlite.connect(str(db_path))

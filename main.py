@@ -2,7 +2,6 @@ from fastapi import FastAPI
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from app.db import init_db
 from app.services.aviaradar import update_flights_data
 from app.routers import flights, weather
 
@@ -26,7 +25,8 @@ async def background_updater():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    from app.db import init_db
+    await init_db()
     task = asyncio.create_task(background_updater())
     yield
     task.cancel()
