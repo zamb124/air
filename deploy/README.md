@@ -15,14 +15,14 @@ DOMAIN=example.com ./deploy/deploy.sh
 DOMAIN="" ./deploy/deploy.sh
 
 # С другим пользователем и IP-адресом сервера
-USERNAME=myuser SERVER_IP=192.168.1.100 ./deploy/deploy.sh
+DEPLOY_USER=myuser SERVER_IP=192.168.1.100 ./deploy/deploy.sh
 
 # Комбинированный пример: другой пользователь, другой домен
-USERNAME=deploy SERVER_IP=10.0.0.50 DOMAIN=mysite.com ./deploy/deploy.sh
+DEPLOY_USER=deploy SERVER_IP=10.0.0.50 DOMAIN=mysite.com ./deploy/deploy.sh
 ```
 
 **Переменные окружения:**
-- `USERNAME` - имя пользователя на удаленном сервере (по умолчанию: `zambas124`)
+- `DEPLOY_USER` - имя пользователя на удаленном сервере (по умолчанию: `zambas124`)
 - `SERVER_IP` - IP-адрес удаленного сервера (по умолчанию: `158.160.120.116`)
 - `DOMAIN` - доменное имя для SSL сертификата (по умолчанию: `omnistore.su`)
 

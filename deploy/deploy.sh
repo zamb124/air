@@ -3,10 +3,10 @@
 set -e
 
 # Настройки подключения к серверу (можно переопределить через переменные окружения)
-USERNAME="${USERNAME:-zambas124}"
+DEPLOY_USER="${DEPLOY_USER:-zambas124}"
 SERVER_IP="${SERVER_IP:-158.160.120.116}"
-SERVER="$USERNAME@$SERVER_IP"
-PROJECT_DIR="/home/$USERNAME/air"
+SERVER="$DEPLOY_USER@$SERVER_IP"
+PROJECT_DIR="/home/$DEPLOY_USER/air"
 REPO_URL="https://github.com/zamb124/air.git"
 DOMAIN="${DOMAIN:-omnistore.su}"  # По умолчанию используем omnistore.su, можно переопределить через переменную окружения
 
