@@ -2,20 +2,18 @@ import aiosqlite
 import os
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent.parent.parent
-DATA_DIR = BASE_DIR / "data"
+DB_DIR = Path(__file__).parent
 
 
 def get_db_path():
     db_name = os.getenv("TEST_DB_NAME", "db.db")
-    return DATA_DIR / db_name
+    return DB_DIR / db_name
 
 
 DB_PATH = get_db_path()
 
 
 async def init_db():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
     db_path = get_db_path()
     
     async with aiosqlite.connect(str(db_path)) as conn:
