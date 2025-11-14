@@ -1,0 +1,16 @@
+[Unit]
+Description=Air REST API Service
+After=network.target
+
+[Service]
+Type=simple
+User=zambas124
+WorkingDirectory=/home/zambas124/air
+Environment="PATH=/home/zambas124/.local/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/zambas124/.local/bin/uv run uvicorn main:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
