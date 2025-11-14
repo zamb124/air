@@ -6,7 +6,94 @@ SERVER="zambas124@158.160.120.116"
 PROJECT_DIR="/home/zambas124/air"
 REPO_URL="https://github.com/zamb124/air.git"
 
-echo "🚀 Начинаем деплой на сервер..."
+IS_REMOTE=false
+if [ -d "$PROJECT_DIR" ] && [ -f "$PROJECT_DIR/docker-compose.yml" ]; then
+    IS_REMOTE=true
+    echo "🔍 Скрипт запущен на удаленном сервере, выполняем локально..."
+fi
+
+if [ "$IS_REMOTE" = true ]; then
+    DEPLOY_FUNC() {
+        deploy_local
+    }
+else
+    DEPLOY_FUNC() {
+        deploy_remote
+    }
+fi
+
+deploy_local() {
+    echo "🚀 Начинаем локальный деплой..."
+    cd "$PROJECT_DIR"
+    
+    echo "📂 Обновляем репозиторий..."
+    git pull origin master || true
+    
+    echo "🐳 Проверяем Docker..."
+    if ! command -v docker &> /dev/null; then
+        echo "📦 Устанавливаем Docker..."
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sudo sh get-docker.sh
+        sudo usermod -aG docker $USER
+        rm get-docker.sh
+    fi
+    
+    echo "🔧 Запускаем Docker daemon..."
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    
+    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null 2>&1; then
+        echo "📦 Устанавливаем Docker Compose..."
+        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+    fi
+    
+    echo "📝 Проверяем config.json..."
+    if [ ! -f config.json ]; then
+        if [ -f config.json.example ]; then
+            echo "⚠️  config.json не найден, копируем из примера..."
+            cp config.json.example config.json
+            echo "⚠️  ВАЖНО: Отредактируйте config.json и укажите реальные токены API!"
+        fi
+    fi
+    
+    echo "📁 Создаем директорию для базы данных..."
+    mkdir -p app/db
+    
+    echo "🐳 Останавливаем и пересобираем Docker контейнер (полная пересборка)..."
+    
+    if sudo docker ps &> /dev/null; then
+        DOCKER_CMD="sudo docker"
+        if command -v docker-compose &> /dev/null; then
+            COMPOSE_CMD="sudo docker-compose"
+        else
+            COMPOSE_CMD="sudo docker compose"
+        fi
+    elif docker ps &> /dev/null 2>&1; then
+        DOCKER_CMD="docker"
+        if command -v docker-compose &> /dev/null; then
+            COMPOSE_CMD="docker-compose"
+        else
+            COMPOSE_CMD="docker compose"
+        fi
+    else
+        echo "❌ Не удалось подключиться к Docker daemon"
+        exit 1
+    fi
+    
+    echo "Используем команду: $COMPOSE_CMD"
+    $COMPOSE_CMD down || true
+    $COMPOSE_CMD build --no-cache --pull
+    $COMPOSE_CMD up -d
+    
+    echo "✅ Docker контейнер пересобран и запущен"
+    
+    echo "📊 Статус Docker контейнеров:"
+    $COMPOSE_CMD ps
+}
+
+deploy_remote() {
+    echo "🚀 Начинаем деплой на сервер..."
 
 echo "📦 Подключение к серверу и клонирование/обновление репозитория..."
 ssh $SERVER bash << ENDSSH
@@ -53,10 +140,10 @@ ssh $SERVER bash << ENDSSH
         fi
     fi
 
-    echo "📁 Создаем директорию для данных..."
-    mkdir -p data
+    echo "📁 Создаем директорию для базы данных..."
+    mkdir -p app/db
 
-    echo "🐳 Собираем и запускаем Docker контейнер..."
+    echo "🐳 Останавливаем и пересобираем Docker контейнер (полная пересборка)..."
     
     if sudo docker ps &> /dev/null; then
         DOCKER_CMD="sudo docker"
@@ -79,10 +166,10 @@ ssh $SERVER bash << ENDSSH
     
     echo "Используем команду: \$COMPOSE_CMD"
     \$COMPOSE_CMD down || true
-    \$COMPOSE_CMD build --no-cache
+    \$COMPOSE_CMD build --no-cache --pull
     \$COMPOSE_CMD up -d
 
-    echo "✅ Docker контейнер запущен"
+    echo "✅ Docker контейнер пересобран и запущен"
 ENDSSH
 
 echo "📋 Копируем конфигурацию nginx..."
@@ -128,6 +215,9 @@ ssh $SERVER bash << 'ENDSSH'
     fi
 ENDSSH
 
-echo "✅ Деплой завершен!"
-echo "🌐 Сервис доступен по адресу: http://158.160.120.116"
+    echo "✅ Деплой завершен!"
+    echo "🌐 Сервис доступен по адресу: http://158.160.120.116"
+}
+
+DEPLOY_FUNC
 
