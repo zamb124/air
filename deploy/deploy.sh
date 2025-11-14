@@ -31,6 +31,10 @@ ssh $SERVER bash << ENDSSH
         sudo usermod -aG docker \$USER
         rm get-docker.sh
     fi
+    
+    echo "🔧 Запускаем Docker daemon..."
+    sudo systemctl start docker
+    sudo systemctl enable docker
 
     if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
         echo "📦 Устанавливаем Docker Compose..."
@@ -53,24 +57,27 @@ ssh $SERVER bash << ENDSSH
     mkdir -p data
 
     echo "🐳 Собираем и запускаем Docker контейнер..."
-    DOCKER_CMD="docker"
-    if ! docker ps &> /dev/null; then
-        echo "⚠️  Docker требует sudo, используем sudo для команд..."
-        DOCKER_CMD="sudo docker"
-    fi
     
-    if command -v docker-compose &> /dev/null; then
-        COMPOSE_CMD="docker-compose"
-        if [ "\$DOCKER_CMD" = "sudo docker" ]; then
+    if sudo docker ps &> /dev/null; then
+        DOCKER_CMD="sudo docker"
+        if command -v docker-compose &> /dev/null; then
             COMPOSE_CMD="sudo docker-compose"
-        fi
-    else
-        COMPOSE_CMD="docker compose"
-        if [ "\$DOCKER_CMD" = "sudo docker" ]; then
+        else
             COMPOSE_CMD="sudo docker compose"
         fi
+    elif docker ps &> /dev/null 2>&1; then
+        DOCKER_CMD="docker"
+        if command -v docker-compose &> /dev/null; then
+            COMPOSE_CMD="docker-compose"
+        else
+            COMPOSE_CMD="docker compose"
+        fi
+    else
+        echo "❌ Не удалось подключиться к Docker daemon"
+        exit 1
     fi
     
+    echo "Используем команду: \$COMPOSE_CMD"
     \$COMPOSE_CMD down || true
     \$COMPOSE_CMD build --no-cache
     \$COMPOSE_CMD up -d
@@ -83,7 +90,18 @@ scp deploy/nginx.conf $SERVER:/tmp/air-nginx.conf
 
 echo "⚙️ Настраиваем nginx на сервере..."
 ssh $SERVER bash << 'ENDSSH'
+    echo "🔧 Проверяем nginx..."
+    if ! command -v nginx &> /dev/null; then
+        echo "📦 Устанавливаем nginx..."
+        sudo apt-get update
+        sudo apt-get install -y nginx
+        sudo systemctl start nginx
+        sudo systemctl enable nginx
+    fi
+    
     echo "🔧 Настраиваем nginx..."
+    sudo mkdir -p /etc/nginx/sites-available
+    sudo mkdir -p /etc/nginx/sites-enabled
     sudo mv /tmp/air-nginx.conf /etc/nginx/sites-available/air
     if [ -f /etc/nginx/sites-enabled/air ]; then
         sudo rm /etc/nginx/sites-enabled/air
@@ -93,18 +111,20 @@ ssh $SERVER bash << 'ENDSSH'
     sudo systemctl reload nginx
 
     echo "📊 Статус Docker контейнеров:"
-    if docker ps &> /dev/null; then
+    if sudo docker ps &> /dev/null; then
+        if command -v docker-compose &> /dev/null; then
+            sudo docker-compose ps
+        else
+            sudo docker compose ps
+        fi
+    elif docker ps &> /dev/null 2>&1; then
         if command -v docker-compose &> /dev/null; then
             docker-compose ps
         else
             docker compose ps
         fi
     else
-        if command -v docker-compose &> /dev/null; then
-            sudo docker-compose ps
-        else
-            sudo docker compose ps
-        fi
+        echo "⚠️  Не удалось проверить статус контейнеров"
     fi
 ENDSSH
 
