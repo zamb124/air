@@ -107,6 +107,12 @@ deploy_local() {
     SERVER_IP="158.160.120.116"
     DOMAIN="${DOMAIN:-omnistore.su}"
     SSL_CONFIG=""
+    HAS_SELFSIGNED=false
+    
+    if [ -f "/etc/nginx/ssl/selfsigned.crt" ]; then
+        HAS_SELFSIGNED=true
+        echo "🔍 Обнаружен самоподписанный сертификат"
+    fi
     
     if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "158.160.120.116" ]; then
         echo "📦 Устанавливаем certbot для Let's Encrypt..."
@@ -115,30 +121,67 @@ deploy_local() {
             sudo apt-get install -y certbot python3-certbot-nginx
         fi
         
-        echo "🔐 Получаем SSL сертификат для домена $DOMAIN..."
-        if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
-            if sudo certbot certonly --nginx -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --redirect 2>&1; then
-                echo "✅ SSL сертификат успешно получен для $DOMAIN"
-            else
-                echo "❌ Не удалось получить сертификат для $DOMAIN"
-                DOMAIN=""
-            fi
-        else
-            echo "✅ SSL сертификат уже существует для $DOMAIN"
-        fi
-        
-        if [ -n "$DOMAIN" ] && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
-            echo "✅ Используем SSL сертификат Let's Encrypt для $DOMAIN"
+        echo "🔐 Проверяем SSL сертификат для домена $DOMAIN..."
+        if sudo test -e "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
+            echo "✅ SSL сертификат Let's Encrypt уже существует для $DOMAIN"
             SSL_CONFIG="ssl"
             SERVER_NAME="$DOMAIN"
         else
-            echo "⚠️  Используем самоподписанный сертификат"
-            DOMAIN=""
+            if [ "$HAS_SELFSIGNED" = "true" ]; then
+                echo "⚠️  Обнаружен самоподписанный сертификат, пытаемся получить Let's Encrypt..."
+            fi
+            echo "🔐 Получаем SSL сертификат для домена $DOMAIN..."
+            
+            CERTBOT_OUTPUT=$(sudo certbot certonly --nginx -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --redirect 2>&1)
+            CERTBOT_EXIT=$?
+            
+            sleep 2
+            
+            if [ -e "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+                echo "✅ SSL сертификат Let's Encrypt найден для $DOMAIN"
+                SSL_CONFIG="ssl"
+                SERVER_NAME="$DOMAIN"
+            elif echo "$CERTBOT_OUTPUT" | grep -q "Certificate not yet due for renewal\|already exists\|Successfully received certificate"; then
+                echo "ℹ️  Certbot сообщает, что сертификат существует, проверяем файл..."
+                sleep 2
+                if sudo test -e "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
+                    echo "✅ SSL сертификат Let's Encrypt найден для $DOMAIN"
+                    SSL_CONFIG="ssl"
+                    SERVER_NAME="$DOMAIN"
+                else
+                    echo "⚠️  Файл сертификата не найден, проверяем альтернативные пути..."
+                    CERT_PATH=$(sudo find /etc/letsencrypt -path "*/live/$DOMAIN/fullchain.pem" 2>/dev/null | head -1)
+                    if [ -n "$CERT_PATH" ] && sudo test -e "$CERT_PATH"; then
+                        echo "✅ SSL сертификат Let's Encrypt найден по пути: $CERT_PATH"
+                        SSL_CONFIG="ssl"
+                        SERVER_NAME="$DOMAIN"
+                    else
+                        echo "⚠️  Сертификат не найден, используем самоподписанный"
+                        DOMAIN=""
+                    fi
+                fi
+            elif [ $CERTBOT_EXIT -eq 0 ]; then
+                sleep 1
+                if sudo test -e "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
+                    echo "✅ SSL сертификат Let's Encrypt успешно получен для $DOMAIN"
+                    SSL_CONFIG="ssl"
+                    SERVER_NAME="$DOMAIN"
+                else
+                    echo "❌ Сертификат не найден после получения"
+                    DOMAIN=""
+                fi
+            else
+                echo "❌ Не удалось получить сертификат Let's Encrypt"
+                if [ "$HAS_SELFSIGNED" = "true" ]; then
+                    echo "⚠️  Оставляем самоподписанный сертификат"
+                fi
+                DOMAIN=""
+            fi
         fi
     fi
     
     if [ -z "$DOMAIN" ] || [ -z "$SSL_CONFIG" ]; then
-        echo "🔐 Создаем самоподписанный SSL сертификат..."
+        echo "🔐 Используем самоподписанный SSL сертификат..."
         sudo mkdir -p /etc/nginx/ssl
         if [ ! -f "/etc/nginx/ssl/selfsigned.crt" ]; then
             sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
@@ -146,6 +189,8 @@ deploy_local() {
                 -out /etc/nginx/ssl/selfsigned.crt \
                 -subj "/C=RU/ST=State/L=City/O=Organization/CN=$SERVER_IP"
             echo "✅ Самоподписанный сертификат создан"
+        else
+            echo "✅ Используем существующий самоподписанный сертификат"
         fi
         SSL_CONFIG="ssl-selfsigned"
         SERVER_NAME="$SERVER_IP"
@@ -377,7 +422,7 @@ ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 $SERVER bash << ENDSSH
 ENDSSH
 
 echo "⚙️ Настраиваем nginx и SSL на сервере..."
-ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 $SERVER bash << ENDSSH
+ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 -o ServerAliveCountMax=3 $SERVER bash << ENDSSH
     PROJECT_DIR="$PROJECT_DIR"
     DOMAIN="${DOMAIN:-omnistore.su}"
     SERVER_IP="158.160.120.116"
@@ -393,6 +438,12 @@ ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 $SERVER bash << ENDSSH
     
     echo "🔒 Настраиваем SSL для домена: \$DOMAIN"
     SSL_CONFIG=""
+    HAS_SELFSIGNED=false
+    
+    if [ -f "/etc/nginx/ssl/selfsigned.crt" ]; then
+        HAS_SELFSIGNED=true
+        echo "🔍 Обнаружен самоподписанный сертификат"
+    fi
     
     if [ -n "\$DOMAIN" ] && [ "\$DOMAIN" != "158.160.120.116" ]; then
         echo "📦 Устанавливаем certbot для Let's Encrypt..."
@@ -400,35 +451,69 @@ ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 $SERVER bash << ENDSSH
             sudo apt-get install -y certbot python3-certbot-nginx
         fi
         
-        echo "🔐 Получаем SSL сертификат для домена \$DOMAIN..."
-        if [ ! -f "/etc/letsencrypt/live/\$DOMAIN/fullchain.pem" ]; then
-            echo "⚠️  Убедитесь, что домен \$DOMAIN указывает на IP \$SERVER_IP"
-            echo "⚠️  Убедитесь, что порты 80 и 443 открыты в firewall"
-            if sudo certbot certonly --nginx -d \$DOMAIN --non-interactive --agree-tos --email admin@\$DOMAIN --redirect 2>&1; then
-                echo "✅ SSL сертификат успешно получен для \$DOMAIN"
-            else
-                echo "❌ Не удалось получить сертификат. Проверьте:"
-                echo "   1. Домен \$DOMAIN указывает на \$SERVER_IP"
-                echo "   2. Порты 80 и 443 открыты"
-                echo "   3. DNS записи распространились (может занять до 24 часов)"
-                DOMAIN=""
-            fi
-        else
-            echo "✅ SSL сертификат уже существует для \$DOMAIN"
-        fi
-        
-        if [ -n "\$DOMAIN" ] && [ -f "/etc/letsencrypt/live/\$DOMAIN/fullchain.pem" ]; then
-            echo "✅ Используем SSL сертификат Let's Encrypt для \$DOMAIN"
+        echo "🔐 Проверяем SSL сертификат для домена \$DOMAIN..."
+        if sudo test -e "/etc/letsencrypt/live/\$DOMAIN/fullchain.pem"; then
+            echo "✅ SSL сертификат Let's Encrypt уже существует для \$DOMAIN"
             SSL_CONFIG="ssl"
             SERVER_NAME="\$DOMAIN"
         else
-            echo "⚠️  Используем самоподписанный сертификат"
-            DOMAIN=""
+            if [ "\$HAS_SELFSIGNED" = "true" ]; then
+                echo "⚠️  Обнаружен самоподписанный сертификат, пытаемся получить Let's Encrypt..."
+            fi
+            echo "🔐 Получаем SSL сертификат для домена \$DOMAIN..."
+            echo "⚠️  Убедитесь, что домен \$DOMAIN указывает на IP \$SERVER_IP"
+            echo "⚠️  Убедитесь, что порты 80 и 443 открыты в firewall"
+            
+            CERTBOT_OUTPUT=\$(sudo certbot certonly --nginx -d \$DOMAIN --non-interactive --agree-tos --email admin@\$DOMAIN --redirect 2>&1)
+            CERTBOT_EXIT=\$?
+            
+            sleep 2
+            
+            if sudo test -e "/etc/letsencrypt/live/\$DOMAIN/fullchain.pem"; then
+                echo "✅ SSL сертификат Let's Encrypt найден для \$DOMAIN"
+                SSL_CONFIG="ssl"
+                SERVER_NAME="\$DOMAIN"
+            elif echo "\$CERTBOT_OUTPUT" | grep -q "Certificate not yet due for renewal\|already exists\|Successfully received certificate"; then
+                echo "ℹ️  Certbot сообщает, что сертификат существует, проверяем файл..."
+                sleep 2
+                if sudo test -e "/etc/letsencrypt/live/\$DOMAIN/fullchain.pem"; then
+                    echo "✅ SSL сертификат Let's Encrypt найден для \$DOMAIN"
+                    SSL_CONFIG="ssl"
+                    SERVER_NAME="\$DOMAIN"
+                else
+                    echo "⚠️  Файл сертификата не найден, проверяем альтернативные пути..."
+                    CERT_PATH=\$(sudo find /etc/letsencrypt -path "*/live/\$DOMAIN/fullchain.pem" 2>/dev/null | head -1)
+                    if [ -n "\$CERT_PATH" ] && sudo test -e "\$CERT_PATH"; then
+                        echo "✅ SSL сертификат Let's Encrypt найден по пути: \$CERT_PATH"
+                        SSL_CONFIG="ssl"
+                        SERVER_NAME="\$DOMAIN"
+                    else
+                        echo "⚠️  Сертификат не найден, используем самоподписанный"
+                        DOMAIN=""
+                    fi
+                fi
+            elif [ \$CERTBOT_EXIT -eq 0 ]; then
+                sleep 1
+                if sudo test -e "/etc/letsencrypt/live/\$DOMAIN/fullchain.pem"; then
+                    echo "✅ SSL сертификат Let's Encrypt успешно получен для \$DOMAIN"
+                    SSL_CONFIG="ssl"
+                    SERVER_NAME="\$DOMAIN"
+                else
+                    echo "❌ Сертификат не найден после получения"
+                    DOMAIN=""
+                fi
+            else
+                echo "❌ Не удалось получить сертификат Let's Encrypt"
+                if [ "\$HAS_SELFSIGNED" = "true" ]; then
+                    echo "⚠️  Оставляем самоподписанный сертификат"
+                fi
+                DOMAIN=""
+            fi
         fi
     fi
     
     if [ -z "\$DOMAIN" ] || [ -z "\$SSL_CONFIG" ]; then
-        echo "🔐 Создаем самоподписанный SSL сертификат..."
+        echo "🔐 Используем самоподписанный SSL сертификат..."
         sudo mkdir -p /etc/nginx/ssl
         if [ ! -f "/etc/nginx/ssl/selfsigned.crt" ]; then
             sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
@@ -436,6 +521,8 @@ ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 $SERVER bash << ENDSSH
                 -out /etc/nginx/ssl/selfsigned.crt \
                 -subj "/C=RU/ST=State/L=City/O=Organization/CN=\$SERVER_IP"
             echo "✅ Самоподписанный сертификат создан"
+        else
+            echo "✅ Используем существующий самоподписанный сертификат"
         fi
         SSL_CONFIG="ssl-selfsigned"
         SERVER_NAME="\$SERVER_IP"
