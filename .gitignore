@@ -38,9 +38,7 @@ env/
 *.sqlite
 *.sqlite3
 *.sqlite-journal
-flights.db
-flights.db-journal
-db/
+data/
 
 .pytest_cache/
 .coverage
@@ -48,4 +46,5 @@ htmlcov/
 
 .env
 .env.local
+config.json
 

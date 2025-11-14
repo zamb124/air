@@ -1,0 +1,153 @@
+---
+alwaysApply: true
+---
+
+# Архитектура MCP-like REST API сервиса
+
+## Назначение проекта
+
+Это модульный REST API сервер, похожий на MCP (Model Context Protocol), который предоставляет набор функций/инструментов через REST API для получения различной информации (рейсы, погода, отели и т.д.).
+
+## Структура проекта
+
+```
+app/
+├── db/              # Работа с базой данных (SQLite)
+│   └── __init__.py  # Функции init_db(), get_db_connection()
+├── routers/         # API роутеры (FastAPI APIRouter)
+│   ├── flights.py   # Роутер для работы с рейсами
+│   ├── weather.py   # Роутер для работы с погодой
+│   ├── hotels.py    # Роутер для работы с отелями
+│   └── ...          # Другие роутеры
+├── models/          # Pydantic модели данных
+│   ├── flights.py   # Модели Flight, FlightListResponse
+│   └── ...          # Другие модели
+└── services/        # Бизнес-логика и работа с внешними API
+    ├── aviaradar.py # Сервис для работы с aviaradar API
+    └── ...          # Другие сервисы
+├── config.py        # Загрузка конфигурации из config.json
+tests/               # Тесты
+├── conftest.py      # Общие фикстуры pytest
+├── test_flights.py  # Тесты для роутера flights
+└── ...              # Другие тесты
+main.py              # Точка входа, регистрация роутеров
+config.json          # Конфигурация (токены API и т.д.) - в .gitignore
+config.json.example  # Пример конфигурации
+data/                # Данные приложения (создается автоматически)
+└── db.db            # База данных SQLite
+```
+
+## Правила архитектуры
+
+1. **Роутеры (app/routers/)** - только HTTP endpoints, без бизнес-логики
+   - Используют модели из `app/models/`
+   - Вызывают функции из `app/services/`
+   - Префикс роутера должен быть понятным (например `/flights`, `/weather`)
+   - Все роутеры регистрируются в `main.py` через `app.include_router()`
+
+2. **Модели (app/models/)** - Pydantic BaseModel для валидации данных
+   - Один файл на домен (flights.py, weather.py)
+   - Используются в response_model роутеров
+
+3. **Сервисы (app/services/)** - вся бизнес-логика
+   - Работа с внешними API
+   - Работа с базой данных через `app.db`
+   - Не импортируют роутеры или FastAPI напрямую
+
+4. **База данных (app/db/)** - только функции работы с БД
+   - `init_db()` - инициализация схемы БД
+   - `get_db_connection()` - получение подключения
+   - DB_PATH = "data/db.db" (база данных хранится в директории data/)
+
+5. **Конфигурация (app/config.py, config.json)** - хранение токенов и настроек
+   - `load_config()` - загрузка конфига из config.json
+   - `get_config_value(key_path, default)` - получение значения по пути (например "gismeteo.api_token")
+   - config.json в .gitignore, config.json.example - шаблон
+   - Использование в сервисах: `from app.config import get_config_value`
+
+6. **Тесты (tests/)** - тесты для всех модулей
+   - `conftest.py` - общие фикстуры (setup_db, client)
+   - `test_*.py` - тесты для конкретных модулей
+   - Запуск: `uv run pytest -v`
+   - Запуск конкретного файла: `uv run pytest tests/test_flights.py`
+
+7. **НЕ ДОЛЖНО БЫТЬ**:
+   - Моков и демо-данных в коде (только реальные данные)
+   - Лишних try-except блоков (только необходимые для обработки ошибок)
+   - Лишних комментариев (только по делу)
+   - Деления на вылеты/прилеты если не требуется - все рейсы сохраняются
+
+## Как добавить новый модуль/роутер
+
+### Шаг 1: Создать модель (если нужна)
+
+Создать `app/models/your_module.py`:
+```python
+from pydantic import BaseModel
+from typing import Optional
+
+class YourModel(BaseModel):
+    field1: str
+    field2: Optional[str] = None
+```
+
+### Шаг 2: Создать сервис (если нужен)
+
+Создать `app/services/your_service.py`:
+```python
+from app.db import get_db_connection
+from app.config import get_config_value
+# или работа с внешним API
+
+API_TOKEN = get_config_value("your_service.api_token", "")
+```
+
+### Шаг 3: Создать роутер
+
+Создать `app/routers/your_module.py`:
+```python
+from fastapi import APIRouter
+from app.models.your_module import YourModel
+from app.services.your_service import your_function
+
+router = APIRouter(prefix="/your-module", tags=["your-module"])
+
+@router.get("/endpoint")
+async def your_endpoint():
+    result = your_function()
+    return {"data": result}
+```
+
+### Шаг 4: Зарегистрировать роутер в main.py
+
+Добавить в `main.py`:
+```python
+from app.routers import flights, weather, hotels, your_module
+
+app.include_router(your_module.router)
+```
+
+## Запуск тестов
+
+```bash
+# Установка зависимостей с dev-пакетами
+uv sync --extra dev
+
+# Запуск всех тестов
+uv run pytest -v
+
+# Запуск конкретного файла тестов
+uv run pytest tests/test_flights.py -v
+
+# Запуск с покрытием
+uv run pytest --cov=app --cov-report=html
+```
+
+## Правила кода
+
+- Все функции асинхронные если делают I/O операции
+- Использовать FastAPI Query для параметров запроса
+- Использовать response_model для валидации ответов
+- Нет лишних try-except (бросать исключения наружу)
+- Нет моков/демо-данных - только реальные данные
+- Минимум комментариев - только необходимые

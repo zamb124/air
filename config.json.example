@@ -1,0 +1,6 @@
+{
+  "gismeteo": {
+    "api_token": "your_gismeteo_token_here"
+  }
+}
+
