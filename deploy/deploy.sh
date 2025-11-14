@@ -2,8 +2,11 @@
 
 set -e
 
-SERVER="zambas124@158.160.120.116"
-PROJECT_DIR="/home/zambas124/air"
+# Настройки подключения к серверу (можно переопределить через переменные окружения)
+USERNAME="${USERNAME:-zambas124}"
+SERVER_IP="${SERVER_IP:-158.160.120.116}"
+SERVER="$USERNAME@$SERVER_IP"
+PROJECT_DIR="/home/$USERNAME/air"
 REPO_URL="https://github.com/zamb124/air.git"
 DOMAIN="${DOMAIN:-omnistore.su}"  # По умолчанию используем omnistore.su, можно переопределить через переменную окружения
 
@@ -104,7 +107,6 @@ deploy_local() {
     echo "✅ Docker контейнер пересобран и запущен"
     
     echo "🔒 Настраиваем SSL для nginx..."
-    SERVER_IP="158.160.120.116"
     DOMAIN="${DOMAIN:-omnistore.su}"
     SSL_CONFIG=""
     HAS_SELFSIGNED=false
@@ -114,7 +116,7 @@ deploy_local() {
         echo "🔍 Обнаружен самоподписанный сертификат"
     fi
     
-    if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "158.160.120.116" ]; then
+    if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "$SERVER_IP" ]; then
         echo "📦 Устанавливаем certbot для Let's Encrypt..."
         if ! command -v certbot &> /dev/null; then
             sudo apt-get update
@@ -425,7 +427,7 @@ echo "⚙️ Настраиваем nginx и SSL на сервере..."
 ssh -o ConnectTimeout=60 -o ServerAliveInterval=30 -o ServerAliveCountMax=10 -o TCPKeepAlive=yes $SERVER bash << ENDSSH
     PROJECT_DIR="$PROJECT_DIR"
     DOMAIN="${DOMAIN:-omnistore.su}"
-    SERVER_IP="158.160.120.116"
+    SERVER_IP="$SERVER_IP"
     
     echo "🔧 Проверяем nginx..."
     if ! command -v nginx &> /dev/null; then
@@ -445,7 +447,7 @@ ssh -o ConnectTimeout=60 -o ServerAliveInterval=30 -o ServerAliveCountMax=10 -o 
         echo "🔍 Обнаружен самоподписанный сертификат"
     fi
     
-    if [ -n "\$DOMAIN" ] && [ "\$DOMAIN" != "158.160.120.116" ]; then
+    if [ -n "\$DOMAIN" ] && [ "\$DOMAIN" != "\$SERVER_IP" ]; then
         echo "📦 Устанавливаем certbot для Let's Encrypt..."
         if ! command -v certbot &> /dev/null; then
             sudo apt-get install -y certbot python3-certbot-nginx
@@ -684,8 +686,8 @@ ENDSSH
         echo "🌐 Сервис доступен по адресу: https://$DOMAIN"
     else
         echo "🌐 Сервис доступен по адресу:"
-        echo "   HTTP: http://158.160.120.116 (редирект на HTTPS)"
-        echo "   HTTPS: https://158.160.120.116 (самоподписанный сертификат)"
+        echo "   HTTP: http://$SERVER_IP (редирект на HTTPS)"
+        echo "   HTTPS: https://$SERVER_IP (самоподписанный сертификат)"
     fi
 }
 
