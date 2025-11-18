@@ -49,7 +49,7 @@ class Widget(BaseModel):
 class WidgetViewResponse(BaseModel):
     view_id: str
     title: str
-    session_id: Optional[str] = None
+    goal_id: Optional[str] = None
     context: Optional[str] = None
     widgets: List[Widget]
 
@@ -59,7 +59,7 @@ class WidgetActionRequest(BaseModel):
     widget_id: str
     item_id: Optional[str] = None
     action_id: str
-    session_id: Optional[str] = None
+    goal_id: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
 
 

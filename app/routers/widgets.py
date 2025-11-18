@@ -11,18 +11,18 @@ router = APIRouter(prefix="/widgets", tags=["widgets"])
 
 @router.get("/view", response_model=WidgetViewResponse)
 async def get_widgets_view(
-    session_id: Optional[str] = Query(None, description="Идентификатор сессии"),
+    goal_id: Optional[str] = Query(None, description="Идентификатор цели"),
     context: Optional[str] = Query(None, description="Контекст использования")
 ):
     if context == "travel":
-        return _get_travel_view(session_id, context)
+        return _get_travel_view(goal_id, context)
     elif context == "savings":
-        return _get_savings_view(session_id, context)
+        return _get_savings_view(goal_id, context)
     else:
-        return _get_default_view(session_id, context or "default")
+        return _get_default_view(goal_id, context or "default")
 
 
-def _get_travel_view(session_id: Optional[str], context: str) -> WidgetViewResponse:
+def _get_travel_view(goal_id: Optional[str], context: str) -> WidgetViewResponse:
     today = datetime.now()
     date_1 = today.strftime("%Y-%m-%d")
     date_2 = (today + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -215,13 +215,13 @@ def _get_travel_view(session_id: Optional[str], context: str) -> WidgetViewRespo
     return WidgetViewResponse(
         view_id="travel_view_123",
         title="Поездка в Питер",
-        session_id=session_id,
+        goal_id=goal_id,
         context=context,
         widgets=widgets
     )
 
 
-def _get_savings_view(session_id: Optional[str], context: str) -> WidgetViewResponse:
+def _get_savings_view(goal_id: Optional[str], context: str) -> WidgetViewResponse:
     today = datetime.now()
     datetime_1 = f"{today.strftime('%Y-%m-%d')}T10:00:00"
     datetime_2 = f"{today.strftime('%Y-%m-%d')}T11:00:00"
@@ -336,13 +336,13 @@ def _get_savings_view(session_id: Optional[str], context: str) -> WidgetViewResp
     return WidgetViewResponse(
         view_id="savings_view_123",
         title="Покупка китайской машины",
-        session_id=session_id,
+        goal_id=goal_id,
         context=context,
         widgets=widgets
     )
 
 
-def _get_default_view(session_id: Optional[str], context: str) -> WidgetViewResponse:
+def _get_default_view(goal_id: Optional[str], context: str) -> WidgetViewResponse:
     today = datetime.now()
     datetime_1 = f"{today.strftime('%Y-%m-%d')}T10:00:00"
 
@@ -397,7 +397,7 @@ def _get_default_view(session_id: Optional[str], context: str) -> WidgetViewResp
     return WidgetViewResponse(
         view_id="default_view_123",
         title="Обучение ИИ",
-        session_id=session_id,
+        goal_id=goal_id,
         context=context,
         widgets=widgets
     )

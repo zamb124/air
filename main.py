@@ -140,10 +140,10 @@ async def root():
                     "GET /widgets/view": {
                         "description": "Получить представление с виджетами",
                         "query_params": {
-                            "session_id": "Опционально. Идентификатор сессии",
+                            "goal_id": "Опционально. Идентификатор цели",
                             "context": "Опционально. Контекст использования (travel, savings)"
                         },
-                        "example": "GET /widgets/view?session_id=123&context=travel"
+                        "example": "GET /widgets/view?goal_id=123&context=travel"
                     },
                     "POST /widgets/action": {
                         "description": "Выполнить действие от виджета",

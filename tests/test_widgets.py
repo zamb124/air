@@ -39,12 +39,12 @@ def test_get_widgets_view_with_context_savings():
     assert len(data["widgets"]) > 0
 
 
-def test_get_widgets_view_with_session_id():
-    response = client.get("/widgets/view?session_id=test_session_123")
+def test_get_widgets_view_with_goal_id():
+    response = client.get("/widgets/view?goal_id=test_goal_123")
     assert response.status_code == 200
     data = response.json()
-    assert "session_id" in data
-    assert data["session_id"] == "test_session_123"
+    assert "goal_id" in data
+    assert data["goal_id"] == "test_goal_123"
 
 
 def test_widget_structure():
@@ -78,7 +78,7 @@ def test_post_widget_action():
             "view_id": "test_view",
             "widget_id": "test_widget",
             "action_id": "test_action",
-            "session_id": "test_session"
+            "goal_id": "test_goal"
         }
     )
     assert response.status_code == 200
@@ -95,7 +95,7 @@ def test_post_widget_action_with_data():
             "view_id": "test_view",
             "widget_id": "test_widget",
             "action_id": "test_action",
-            "session_id": "test_session",
+            "goal_id": "test_goal",
             "data": {
                 "name": "Иван",
                 "email": "ivan@example.com"
