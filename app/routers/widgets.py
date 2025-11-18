@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query
 from typing import Optional
 from datetime import datetime, timedelta
 from app.models.widgets import (
     WidgetViewResponse, WidgetActionRequest, WidgetActionResponse,
-    Widget, Item, Action, WidgetConfig, WidgetMetadata, FormField,
-    FormFieldValidation, Timeline, TimelineDate, ViewMetadata, ViewWidgets
+    Widget, Item, Action, QuizQuestion, QuizOption
 )
 
 router = APIRouter(prefix="/widgets", tags=["widgets"])
@@ -16,386 +15,198 @@ async def get_widgets_view(
     context: Optional[str] = Query(None, description="Контекст использования")
 ):
     if context == "travel":
-        return _get_travel_view(session_id)
+        return _get_travel_view(session_id, context)
     elif context == "savings":
-        return _get_savings_view(session_id)
+        return _get_savings_view(session_id, context)
     else:
-        return _get_default_view(session_id)
+        return _get_default_view(session_id, context or "default")
 
 
-def _get_travel_view(session_id: Optional[str]) -> WidgetViewResponse:
+def _get_travel_view(session_id: Optional[str], context: str) -> WidgetViewResponse:
     today = datetime.now()
     date_1 = today.strftime("%Y-%m-%d")
     date_2 = (today + timedelta(days=1)).strftime("%Y-%m-%d")
     date_3 = (today + timedelta(days=2)).strftime("%Y-%m-%d")
+    
+    datetime_1 = f"{date_1}T10:00:00"
+    datetime_2 = f"{date_1}T11:00:00"
+    datetime_3 = f"{date_2}T10:00:00"
+    datetime_4 = f"{date_3}T10:00:00"
 
-    before_timeline = [
+    widgets = [
         Widget(
             id="widget_flights",
-            type="card_carousel",
-            date=date_1,
-            config=WidgetConfig(
-                title="Выберите авиабилеты",
-                show_dots=True,
-                auto_play=False
-            ),
+            type="large_card_carousel",
+            title="Выберите авиабилеты",
+            group="Подготовка",
+            group_order=1,
+            datetime=datetime_1,
+            order=1,
             items=[
                 Item(
                     id="flight_1",
-                    primary_text="SU 123 Москва → Сочи",
-                    secondary_text="15 янв, 10:00",
-                    tertiary_text="от 5 000 руб",
+                    text="SU 123 Москва → Сочи",
+                    subtitle="15 янв, 10:00, от 5 000 руб",
                     icon="✈️",
-                    metadata=WidgetMetadata(price=5000),
+                    metadata={"price": 5000},
                     actions=[
                         Action(
                             id="action_select_flight_1",
                             type="send_message",
                             button_text="Выбрать",
-                            button_style="primary",
                             message="Выбрать рейс SU 123 Москва-Сочи на 15 янв 10:00 за 5000 руб"
                         )
                     ]
                 ),
                 Item(
                     id="flight_2",
-                    primary_text="DP 456 Москва → Сочи",
-                    secondary_text="15 янв, 14:30",
-                    tertiary_text="от 4 500 руб",
+                    text="DP 456 Москва → Сочи",
+                    subtitle="15 янв, 14:30, от 4 500 руб",
                     icon="✈️",
-                    metadata=WidgetMetadata(price=4500),
+                    metadata={"price": 4500},
                     actions=[
                         Action(
                             id="action_select_flight_2",
                             type="send_message",
                             button_text="Выбрать",
-                            button_style="primary",
                             message="Выбрать рейс DP 456 Москва-Сочи на 15 янв 14:30 за 4500 руб"
-                        )
-                    ]
-                ),
-                Item(
-                    id="flight_3",
-                    primary_text="S7 789 Москва → Сочи",
-                    secondary_text="15 янв, 18:00",
-                    tertiary_text="от 6 000 руб",
-                    icon="✈️",
-                    metadata=WidgetMetadata(price=6000),
-                    actions=[
-                        Action(
-                            id="action_select_flight_3",
-                            type="send_message",
-                            button_text="Выбрать",
-                            button_style="primary",
-                            message="Выбрать рейс S7 789 Москва-Сочи на 15 янв 18:00 за 6000 руб"
                         )
                     ]
                 )
             ]
         ),
         Widget(
-            id="widget_form_booking",
-            type="form",
-            date=date_1,
-            config=WidgetConfig(
-                title="Заполните данные для бронирования",
-                submit_button_text="Отправить"
-            ),
-            fields=[
-                FormField(
-                    id="name",
-                    type="text",
-                    label="Ваше имя",
-                    placeholder="Введите имя",
-                    required=True,
-                    validation=FormFieldValidation(min_length=2, max_length=50)
-                ),
-                FormField(
-                    id="email",
-                    type="email",
-                    label="Email",
-                    placeholder="example@mail.com",
-                    required=True
-                ),
-                FormField(
-                    id="phone",
-                    type="tel",
-                    label="Телефон",
-                    placeholder="+7 (999) 123-45-67",
-                    required=True
-                ),
-                FormField(
-                    id="date_from",
-                    type="date",
-                    label="Дата заезда",
-                    required=True
-                ),
-                FormField(
-                    id="date_to",
-                    type="date",
-                    label="Дата выезда",
-                    required=True
-                ),
-                FormField(
-                    id="guests",
-                    type="number",
-                    label="Количество гостей",
-                    default_value=1,
-                    validation=FormFieldValidation(min=1, max=10)
+            id="widget_hotel_day1",
+            type="card_with_button",
+            title="Ваш отель",
+            group=date_1,
+            group_order=2,
+            datetime=datetime_2,
+            order=1,
+            items=[
+                Item(
+                    id="hotel_1",
+                    text="Corinthia",
+                    subtitle="Заселение в 11:00, 7 декабря. Выселение до 9:00, 9 декабря",
+                    image_url="https://example.com/hotel1.jpg",
+                    metadata={"address": "г. Санкт-Петербург, Невский пр-т, д. 57"}
                 )
             ],
             actions=[
                 Action(
-                    id="action_submit_form",
-                    type="submit_form",
-                    button_text="Забронировать",
-                    button_style="primary",
-                    message_template="Забронировать отель для {name} с {date_from} по {date_to}, гостей: {guests}, контакты: email {email}, телефон {phone}",
-                    required_fields=["name", "email", "phone", "date_from", "date_to"]
+                    id="action_open_map",
+                    type="open_url",
+                    button_text="Открыть на карте",
+                    url="https://maps.yandex.ru/..."
                 )
             ]
-        )
-    ]
-
-    timeline = Timeline(
-        enabled=True,
-        start_date=date_1,
-        end_date=date_3,
-        dates=[
-            TimelineDate(
-                date=date_1,
-                label="День 1",
-                widgets=[
-                    Widget(
-                        id="widget_hotels_day1",
-                        type="card_carousel",
-                        date=date_1,
-                        config=WidgetConfig(
-                            title="Выберите отель на сегодня",
-                            show_dots=True
-                        ),
-                        items=[
-                            Item(
-                                id="hotel_1",
-                                primary_text="Отель Москва",
-                                secondary_text="4 звезды, центр",
-                                tertiary_text="5 000 руб/ночь",
-                                image_url="https://example.com/hotel1.jpg",
-                                badge="Рекомендуем",
-                                metadata=WidgetMetadata(
-                                    price=5000,
-                                    rating=4.5,
-                                    location="Москва, центр"
-                                ),
-                                actions=[
-                                    Action(
-                                        id="action_select_hotel_1",
-                                        type="send_message",
-                                        button_text="Выбрать",
-                                        button_style="primary",
-                                        message="Выбрать отель Отель Москва за 5000 руб с рейтингом 4.5"
-                                    )
-                                ]
-                            ),
-                            Item(
-                                id="hotel_2",
-                                primary_text="Гранд Отель",
-                                secondary_text="5 звезд, центр",
-                                tertiary_text="8 000 руб/ночь",
-                                image_url="https://example.com/hotel2.jpg",
-                                metadata=WidgetMetadata(
-                                    price=8000,
-                                    rating=4.8,
-                                    location="Москва, центр"
-                                ),
-                                actions=[
-                                    Action(
-                                        id="action_select_hotel_2",
-                                        type="send_message",
-                                        button_text="Выбрать",
-                                        button_style="primary",
-                                        message="Выбрать отель Гранд Отель за 8000 руб с рейтингом 4.8"
-                                    )
-                                ]
-                            )
-                        ]
-                    ),
-                    Widget(
-                        id="widget_map_hotels",
-                        type="map",
-                        date=date_1,
-                        config=WidgetConfig(
-                            title="Карта отелей",
-                            center={"lat": 55.7522, "lon": 37.6156},
-                            zoom=13,
-                            height=400
-                        ),
-                        items=[
-                            Item(
-                                id="marker_hotel_1",
-                                primary_text="Отель Москва",
-                                secondary_text="Центр, 5000 руб/ночь",
-                                metadata=WidgetMetadata(
-                                    coordinates={"lat": 55.7522, "lon": 37.6156},
-                                    marker_color="red",
-                                    marker_icon="hotel"
-                                ),
-                                actions=[
-                                    Action(
-                                        id="action_map_hotel_1",
-                                        type="send_message",
-                                        button_text="Подробнее",
-                                        message="Показать детали отеля Отель Москва"
-                                    )
-                                ]
-                            )
-                        ]
-                    )
-                ]
-            ),
-            TimelineDate(
-                date=date_2,
-                label="День 2",
-                widgets=[
-                    Widget(
-                        id="widget_guides_day2",
-                        type="text_list",
-                        date=date_2,
-                        config=WidgetConfig(
-                            title="Выберите гида",
-                            layout="spacious"
-                        ),
-                        items=[
-                            Item(
-                                id="guide_1",
-                                primary_text="Иван Иванов",
-                                secondary_text="Экскурсии по Москве",
-                                tertiary_text="Опыт 5 лет, рейтинг 4.8",
-                                image_url="https://example.com/guide1.jpg",
-                                icon="👨‍🏫",
-                                metadata=WidgetMetadata(rating=4.8),
-                                actions=[
-                                    Action(
-                                        id="action_select_guide_1",
-                                        type="send_message",
-                                        button_text="Забронировать",
-                                        message="Забронировать гида Иван Иванов"
-                                    )
-                                ]
-                            ),
-                            Item(
-                                id="guide_2",
-                                primary_text="Мария Петрова",
-                                secondary_text="Экскурсии по Красной площади",
-                                tertiary_text="Опыт 3 года, рейтинг 4.6",
-                                image_url="https://example.com/guide2.jpg",
-                                icon="👩‍🏫",
-                                metadata=WidgetMetadata(rating=4.6),
-                                actions=[
-                                    Action(
-                                        id="action_select_guide_2",
-                                        type="send_message",
-                                        button_text="Забронировать",
-                                        message="Забронировать гида Мария Петрова"
-                                    )
-                                ]
-                            )
-                        ]
-                    ),
-                    Widget(
-                        id="widget_audio_tour",
-                        type="audio",
-                        date=date_2,
-                        config=WidgetConfig(title="Аудио экскурсия"),
-                        items=[
-                            Item(
-                                id="audio_1",
-                                primary_text="Экскурсия по Красной площади",
-                                secondary_text="Продолжительность: 1 час",
-                                metadata=WidgetMetadata(
-                                    audio_url="https://example.com/audio/tour1.mp3",
-                                    duration=3600,
-                                    thumbnail_url="https://example.com/audio/tour1.jpg"
-                                ),
-                                actions=[
-                                    Action(
-                                        id="action_download_audio",
-                                        type="open_url",
-                                        button_text="Скачать",
-                                        url="https://example.com/audio/tour1.mp3"
-                                    )
-                                ]
-                            )
-                        ]
-                    )
-                ]
-            ),
-            TimelineDate(
-                date=date_3,
-                label="День 3",
-                widgets=[
-                    Widget(
-                        id="widget_timeline_events",
-                        type="timeline",
-                        date=date_3,
-                        config=WidgetConfig(
-                            title="Расписание на день",
-                            orientation="vertical"
-                        ),
-                        items=[
-                            Item(
-                                id="event_1",
-                                primary_text="Прибытие в отель",
-                                secondary_text="10:00",
-                                metadata=WidgetMetadata(
-                                    datetime=f"{date_3}T10:00:00",
-                                    status="upcoming"
-                                ),
-                                actions=[
-                                    Action(
-                                        id="action_event_details_1",
-                                        type="send_message",
-                                        button_text="Подробнее",
-                                        message="Детали события: Прибытие в отель в 10:00"
-                                    )
-                                ]
-                            ),
-                            Item(
-                                id="event_2",
-                                primary_text="Экскурсия по центру",
-                                secondary_text="14:00",
-                                metadata=WidgetMetadata(
-                                    datetime=f"{date_3}T14:00:00",
-                                    status="upcoming"
-                                ),
-                                actions=[
-                                    Action(
-                                        id="action_event_details_2",
-                                        type="send_message",
-                                        button_text="Подробнее",
-                                        message="Детали события: Экскурсия по центру в 14:00"
-                                    )
-                                ]
-                            )
-                        ]
-                    )
-                ]
-            )
-        ]
-    )
-
-    after_timeline = [
+        ),
         Widget(
-            id="widget_summary",
-            type="text",
-            date=date_3,
-            config=WidgetConfig(title="Итоговая информация"),
+            id="widget_restaurants_day1",
+            type="small_card_carousel",
+            title="Завтрак в ресторане",
+            group=date_1,
+            group_order=2,
+            datetime=datetime_2,
+            order=2,
             items=[
                 Item(
-                    id="text_summary",
-                    primary_text="Путешествие спланировано!",
-                    secondary_text="Все детали сохранены. Приятной поездки!",
-                    metadata=WidgetMetadata(format="plain")
+                    id="restaurant_1",
+                    text="Mad Espresso",
+                    image_url="https://example.com/rest1.jpg",
+                    actions=[
+                        Action(
+                            id="action_restaurant_1",
+                            type="send_message",
+                            button_text="Выбрать",
+                            message="Показать детали ресторана Mad Espresso"
+                        )
+                    ]
+                ),
+                Item(
+                    id="restaurant_2",
+                    text="Animals",
+                    image_url="https://example.com/rest2.jpg",
+                    actions=[
+                        Action(
+                            id="action_restaurant_2",
+                            type="send_message",
+                            button_text="Выбрать",
+                            message="Показать детали ресторана Animals"
+                        )
+                    ]
+                ),
+                Item(
+                    id="restaurant_3",
+                    text="Aster",
+                    image_url="https://example.com/rest3.jpg",
+                    actions=[
+                        Action(
+                            id="action_restaurant_3",
+                            type="send_message",
+                            button_text="Выбрать",
+                            message="Что лучше попробовать в Aster в Питер на завтрак"
+                        )
+                    ]
+                )
+            ]
+        ),
+        Widget(
+            id="widget_map_hotel",
+            type="map",
+            title="Карта отелей",
+            group=date_1,
+            group_order=2,
+            datetime=datetime_2,
+            order=3,
+            data={
+                "center": {"lat": 55.7522, "lon": 37.6156},
+                "zoom": 13,
+                "markers": [
+                    {"lat": 55.7522, "lon": 37.6156, "title": "Corinthia"}
+                ]
+            }
+        ),
+        Widget(
+            id="widget_guides_day2",
+            type="small_card_carousel",
+            title="Выберите гида",
+            group=date_2,
+            group_order=3,
+            datetime=datetime_3,
+            order=1,
+            items=[
+                Item(
+                    id="guide_1",
+                    text="Иван Иванов",
+                    subtitle="Экскурсии по Москве",
+                    image_url="https://example.com/guide1.jpg",
+                    icon="👨‍🏫",
+                    metadata={"rating": 4.8},
+                    actions=[
+                        Action(
+                            id="action_select_guide_1",
+                            type="send_message",
+                            button_text="Забронировать",
+                            message="Забронировать гида Иван Иванов"
+                        )
+                    ]
+                ),
+                Item(
+                    id="guide_2",
+                    text="Мария Петрова",
+                    subtitle="Экскурсии по Красной площади",
+                    image_url="https://example.com/guide2.jpg",
+                    icon="👩‍🏫",
+                    metadata={"rating": 4.6},
+                    actions=[
+                        Action(
+                            id="action_select_guide_2",
+                            type="send_message",
+                            button_text="Забронировать",
+                            message="Забронировать гида Мария Петрова"
+                        )
+                    ]
                 )
             ]
         )
@@ -403,156 +214,120 @@ def _get_travel_view(session_id: Optional[str]) -> WidgetViewResponse:
 
     return WidgetViewResponse(
         view_id="travel_view_123",
-        title="Планирование путешествия в Москву",
-        metadata=ViewMetadata(
-            session_id=session_id,
-            context="travel",
-            updated_at=datetime.now().isoformat()
-        ),
-        timeline=timeline,
-        widgets=ViewWidgets(
-            before_timeline=before_timeline,
-            after_timeline=after_timeline
-        )
+        title="Поездка в Питер",
+        session_id=session_id,
+        context=context,
+        widgets=widgets
     )
 
 
-def _get_savings_view(session_id: Optional[str]) -> WidgetViewResponse:
+def _get_savings_view(session_id: Optional[str], context: str) -> WidgetViewResponse:
     today = datetime.now()
-    date_1 = today.strftime("%Y-%m-%d")
+    datetime_1 = f"{today.strftime('%Y-%m-%d')}T10:00:00"
+    datetime_2 = f"{today.strftime('%Y-%m-%d')}T11:00:00"
 
-    before_timeline = [
+    widgets = [
         Widget(
-            id="widget_progress",
-            type="progress",
-            date=date_1,
-            config=WidgetConfig(title="Прогресс накопления"),
+            id="widget_car_selection",
+            type="large_card_carousel",
+            title="Машины на выбор",
+            group="Выбор машины",
+            group_order=1,
+            datetime=datetime_1,
+            order=1,
             items=[
                 Item(
-                    id="progress_1",
-                    primary_text="Накоплено 1 500 000 из 3 000 000 руб",
-                    secondary_text="50% завершено",
-                    metadata=WidgetMetadata(
-                        current=1500000,
-                        total=3000000,
-                        percentage=50,
-                        unit="руб"
-                    ),
+                    id="car_1",
+                    text="Geely Xingyuan",
+                    subtitle="субкомпактный электромобиль-хетчбэк, разработанный китайской компанией Geely Auto",
+                    image_url="https://example.com/car1.jpg",
+                    metadata={"price": 6500000},
                     actions=[
                         Action(
-                            id="action_show_details",
+                            id="action_calculate_cost",
                             type="send_message",
-                            button_text="Подробнее",
-                            message="Показать детали накопления на квартиру"
+                            button_text="Рассчитать стоимость",
+                            message="Рассчитать стоимость машины Geely Xingyuan"
                         )
                     ]
                 )
             ]
         ),
         Widget(
-            id="widget_chart",
-            type="chart",
-            date=date_1,
-            config=WidgetConfig(
-                title="Статистика накоплений",
-                chart_type="line"
-            ),
-            items=[
-                Item(
-                    id="chart_1",
-                    primary_text="График накоплений",
-                    metadata=WidgetMetadata(
-                        data=[
-                            {"label": "Янв", "value": 100000},
-                            {"label": "Фев", "value": 250000},
-                            {"label": "Мар", "value": 400000},
-                            {"label": "Апр", "value": 550000},
-                            {"label": "Май", "value": 700000},
-                            {"label": "Июн", "value": 850000},
-                            {"label": "Июл", "value": 1000000},
-                            {"label": "Авг", "value": 1150000},
-                            {"label": "Сен", "value": 1300000},
-                            {"label": "Окт", "value": 1450000},
-                            {"label": "Ноя", "value": 1500000}
-                        ],
-                        labels=["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-                               "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь"],
-                        colors=["#4CAF50"]
-                    )
-                )
-            ]
-        ),
-        Widget(
-            id="widget_stepper",
-            type="stepper",
-            date=date_1,
-            config=WidgetConfig(
-                title="Этапы накопления",
-                orientation="horizontal"
-            ),
+            id="widget_savings_steps",
+            type="small_card_carousel",
+            title="Этапы накопления",
+            group="План накопления",
+            group_order=2,
+            datetime=datetime_2,
+            order=1,
             items=[
                 Item(
                     id="step_1",
-                    primary_text="Начало накопления",
-                    metadata=WidgetMetadata(
-                        step_number=1,
-                        status="completed",
-                        completed=True
-                    )
+                    text="Открыть счёт накопления",
+                    icon="💰",
+                    image_url="https://example.com/step1.jpg",
+                    actions=[
+                        Action(
+                            id="action_step_1",
+                            type="send_message",
+                            button_text="Открыть",
+                            message="Открыть счёт накопления"
+                        )
+                    ]
                 ),
                 Item(
                     id="step_2",
-                    primary_text="50% накоплено",
-                    metadata=WidgetMetadata(
-                        step_number=2,
-                        status="active",
-                        completed=False
-                    )
+                    text="Сколько с ЗП откладывать",
+                    icon="💰",
+                    image_url="https://example.com/step2.jpg",
+                    actions=[
+                        Action(
+                            id="action_step_2",
+                            type="send_message",
+                            button_text="Рассчитать",
+                            message="Помоги расчитать сколько мне надо откладывать с моей зарплаты денег, чтобы копить на машину"
+                        )
+                    ]
                 ),
                 Item(
                     id="step_3",
-                    primary_text="Выбор квартиры",
-                    metadata=WidgetMetadata(
-                        step_number=3,
-                        status="pending",
-                        completed=False
-                    )
+                    text="Внести залог за машину",
+                    icon="💰",
+                    image_url="https://example.com/step3.jpg",
+                    actions=[
+                        Action(
+                            id="action_step_3",
+                            type="send_message",
+                            button_text="Внести",
+                            message="Внести залог за машину"
+                        )
+                    ]
                 )
             ]
         ),
         Widget(
-            id="widget_button_add",
-            type="button",
-            date=date_1,
-            config=WidgetConfig(title="Действия"),
+            id="widget_progress",
+            type="card_with_button",
+            title="Прогресс накопления",
+            group="План накопления",
+            group_order=2,
+            datetime=datetime_2,
+            order=2,
             items=[
                 Item(
-                    id="btn_add_money",
-                    primary_text="Добавить сумму",
-                    icon="💰",
-                    actions=[
-                        Action(
-                            id="action_add_money",
-                            type="send_message",
-                            button_text="Добавить",
-                            button_style="primary",
-                            message="Хочу добавить сумму к накоплениям"
-                        )
-                    ]
-                ),
-                Item(
-                    id="btn_show_options",
-                    primary_text="Показать варианты квартир",
-                    icon="🏠",
-                    actions=[
-                        Action(
-                            id="action_show_apartments",
-                            type="send_message",
-                            button_text="Показать",
-                            button_style="secondary",
-                            message="Показать варианты квартир за 3 000 000 руб"
-                        )
-                    ]
+                    id="progress_1",
+                    text="Накоплено 1 500 000 из 3 000 000 руб",
+                    subtitle="50% завершено",
+                    metadata={"current": 1500000, "total": 3000000, "percentage": 50}
+                )
+            ],
+            actions=[
+                Action(
+                    id="action_show_details",
+                    type="send_message",
+                    button_text="Подробнее",
+                    message="Показать детали накопления"
                 )
             ]
         )
@@ -560,71 +335,59 @@ def _get_savings_view(session_id: Optional[str]) -> WidgetViewResponse:
 
     return WidgetViewResponse(
         view_id="savings_view_123",
-        title="Накопление на квартиру",
-        metadata=ViewMetadata(
-            session_id=session_id,
-            context="savings",
-            updated_at=datetime.now().isoformat()
-        ),
-        timeline=None,
-        widgets=ViewWidgets(
-            before_timeline=before_timeline,
-            after_timeline=[]
-        )
+        title="Покупка китайской машины",
+        session_id=session_id,
+        context=context,
+        widgets=widgets
     )
 
 
-def _get_default_view(session_id: Optional[str]) -> WidgetViewResponse:
+def _get_default_view(session_id: Optional[str], context: str) -> WidgetViewResponse:
     today = datetime.now()
-    date_1 = today.strftime("%Y-%m-%d")
+    datetime_1 = f"{today.strftime('%Y-%m-%d')}T10:00:00"
 
-    before_timeline = [
+    widgets = [
         Widget(
-            id="widget_welcome",
-            type="text",
-            date=date_1,
-            config=WidgetConfig(title="Добро пожаловать"),
+            id="widget_ai_basics",
+            type="card_with_button",
+            title="Типы ИИ помощников",
+            group="Основы ИИ",
+            group_order=1,
+            datetime=datetime_1,
+            order=1,
             items=[
                 Item(
-                    id="text_welcome",
-                    primary_text="Привет! Я помогу спланировать путешествие.",
-                    secondary_text="Выберите один из вариантов ниже.",
-                    metadata=WidgetMetadata(format="plain")
+                    id="content_1",
+                    text="Узкий искусственный интеллект (Narrow AI)",
+                    subtitle="Описание: Узкий ИИ предназначен для выполнения ограниченного набора задач..."
+                )
+            ],
+            actions=[
+                Action(
+                    id="action_start_quiz",
+                    type="send_message",
+                    button_text="Пройти квиз",
+                    message="Показать квиз по основам ИИ"
                 )
             ]
         ),
         Widget(
-            id="widget_actions",
-            type="button",
-            date=date_1,
-            config=WidgetConfig(title="Выберите действие"),
-            items=[
-                Item(
-                    id="btn_travel",
-                    primary_text="Планирование путешествия",
-                    icon="✈️",
-                    actions=[
-                        Action(
-                            id="action_travel",
-                            type="send_message",
-                            button_text="Начать планирование",
-                            button_style="primary",
-                            message="Хочу спланировать путешествие"
-                        )
-                    ]
-                ),
-                Item(
-                    id="btn_savings",
-                    primary_text="Накопление на квартиру",
-                    icon="🏠",
-                    actions=[
-                        Action(
-                            id="action_savings",
-                            type="send_message",
-                            button_text="Показать прогресс",
-                            button_style="secondary",
-                            message="Показать прогресс накопления на квартиру"
-                        )
+            id="widget_quiz",
+            type="quiz",
+            title="Первый квиз",
+            group="Первый квиз",
+            group_order=2,
+            datetime=datetime_1,
+            order=1,
+            questions=[
+                QuizQuestion(
+                    id="question_1",
+                    text="Какой тип ИИ представлен голосовым помощником?",
+                    options=[
+                        QuizOption(id="opt_1", text="Реактивный ИИ (Reactive AI)", is_correct=False),
+                        QuizOption(id="opt_2", text="Общий ИИ (General AI)", is_correct=False),
+                        QuizOption(id="opt_3", text="Узкий ИИ (Narrow AI)", is_correct=True),
+                        QuizOption(id="opt_4", text="Искусственный Суперинтеллект", is_correct=False)
                     ]
                 )
             ]
@@ -633,32 +396,17 @@ def _get_default_view(session_id: Optional[str]) -> WidgetViewResponse:
 
     return WidgetViewResponse(
         view_id="default_view_123",
-        title="Главная",
-        metadata=ViewMetadata(
-            session_id=session_id,
-            context="default",
-            updated_at=datetime.now().isoformat()
-        ),
-        timeline=None,
-        widgets=ViewWidgets(
-            before_timeline=before_timeline,
-            after_timeline=[]
-        )
+        title="Обучение ИИ",
+        session_id=session_id,
+        context=context,
+        widgets=widgets
     )
 
 
 @router.post("/action", response_model=WidgetActionResponse)
 async def execute_widget_action(action_request: WidgetActionRequest):
-    if action_request.form_data:
-        return WidgetActionResponse(
-            success=True,
-            message="Форма успешно отправлена",
-            data={"action_id": action_request.action_id, "form_data": action_request.form_data}
-        )
-    else:
-        return WidgetActionResponse(
-            success=True,
-            message=f"Действие {action_request.action_id} выполнено",
-            data={"action_id": action_request.action_id}
-        )
-
+    return WidgetActionResponse(
+        success=True,
+        message=f"Действие {action_request.action_id} выполнено",
+        data={"action_id": action_request.action_id, "data": action_request.data}
+    )

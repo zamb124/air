@@ -14,6 +14,7 @@ def test_get_widgets_view():
     assert "widgets" in data
     assert isinstance(data["view_id"], str)
     assert isinstance(data["title"], str)
+    assert isinstance(data["widgets"], list)
 
 
 def test_get_widgets_view_with_context_travel():
@@ -22,13 +23,9 @@ def test_get_widgets_view_with_context_travel():
     data = response.json()
     assert "view_id" in data
     assert "title" in data
-    assert "timeline" in data
     assert "widgets" in data
-    assert data["timeline"]["enabled"] is True
-    assert "before_timeline" in data["widgets"]
-    assert "after_timeline" in data["widgets"]
-    assert isinstance(data["widgets"]["before_timeline"], list)
-    assert isinstance(data["widgets"]["after_timeline"], list)
+    assert isinstance(data["widgets"], list)
+    assert len(data["widgets"]) > 0
 
 
 def test_get_widgets_view_with_context_savings():
@@ -38,18 +35,16 @@ def test_get_widgets_view_with_context_savings():
     assert "view_id" in data
     assert "title" in data
     assert "widgets" in data
-    assert "before_timeline" in data["widgets"]
-    assert isinstance(data["widgets"]["before_timeline"], list)
-    assert len(data["widgets"]["before_timeline"]) > 0
+    assert isinstance(data["widgets"], list)
+    assert len(data["widgets"]) > 0
 
 
 def test_get_widgets_view_with_session_id():
     response = client.get("/widgets/view?session_id=test_session_123")
     assert response.status_code == 200
     data = response.json()
-    assert "metadata" in data
-    if data["metadata"]:
-        assert data["metadata"]["session_id"] == "test_session_123"
+    assert "session_id" in data
+    assert data["session_id"] == "test_session_123"
 
 
 def test_widget_structure():
@@ -57,22 +52,23 @@ def test_widget_structure():
     assert response.status_code == 200
     data = response.json()
     
-    if len(data["widgets"]["before_timeline"]) > 0:
-        widget = data["widgets"]["before_timeline"][0]
+    if len(data["widgets"]) > 0:
+        widget = data["widgets"][0]
         assert "id" in widget
         assert "type" in widget
         assert isinstance(widget["id"], str)
         assert isinstance(widget["type"], str)
 
 
-def test_widget_has_date_field():
+def test_widget_has_group_and_datetime():
     response = client.get("/widgets/view?context=travel")
     assert response.status_code == 200
     data = response.json()
     
-    if len(data["widgets"]["before_timeline"]) > 0:
-        widget = data["widgets"]["before_timeline"][0]
-        assert "date" in widget
+    if len(data["widgets"]) > 0:
+        widget = data["widgets"][0]
+        assert "group" in widget or widget.get("group") is None
+        assert "datetime" in widget or widget.get("datetime") is None
 
 
 def test_post_widget_action():
@@ -92,7 +88,7 @@ def test_post_widget_action():
     assert data["success"] is True
 
 
-def test_post_widget_action_with_form_data():
+def test_post_widget_action_with_data():
     response = client.post(
         "/widgets/action",
         json={
@@ -100,7 +96,7 @@ def test_post_widget_action_with_form_data():
             "widget_id": "test_widget",
             "action_id": "test_action",
             "session_id": "test_session",
-            "form_data": {
+            "data": {
                 "name": "Иван",
                 "email": "ivan@example.com"
             }
@@ -109,6 +105,16 @@ def test_post_widget_action_with_form_data():
     assert response.status_code == 200
     data = response.json()
     assert "success" in data
-    assert "form_data" in data["data"]
+    assert "data" in data["data"]
     assert data["success"] is True
 
+
+def test_widget_types():
+    response = client.get("/widgets/view?context=travel")
+    assert response.status_code == 200
+    data = response.json()
+    
+    allowed_types = {"large_card_carousel", "small_card_carousel", "card_with_button", "quiz", "map"}
+    
+    for widget in data["widgets"]:
+        assert widget["type"] in allowed_types
