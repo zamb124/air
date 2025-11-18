@@ -60,8 +60,7 @@ async def test_get_route_map_success():
     map_url = await get_route_map(lat_from, lon_from, lat_to, lon_to)
     
     assert isinstance(map_url, str)
-    assert "static.api.2gis.com" in map_url
-    assert "key=" in map_url
+    assert "static.maps.2gis.com" in map_url
 
 
 @pytest.mark.asyncio
@@ -78,7 +77,7 @@ async def test_get_route_map_different_points():
     map_url = await get_route_map(lat_from, lon_from, lat_to, lon_to)
     
     assert isinstance(map_url, str)
-    assert "static.api.2gis.com" in map_url
+    assert "static.maps.2gis.com" in map_url
 
 
 def test_get_hotels_endpoint_success():
@@ -127,7 +126,7 @@ def test_get_route_map_endpoint_success():
     data = response.json()
     assert "map_url" in data
     assert isinstance(data["map_url"], str)
-    assert "static.api.2gis.com" in data["map_url"]
+    assert "static.maps.2gis.com" in data["map_url"]
 
 
 def test_get_route_map_endpoint_missing_params():
@@ -167,5 +166,5 @@ async def test_get_route_map_invalid_coordinates():
     
     map_url = await get_route_map(0.0, 0.0, 0.0, 0.0)
     assert isinstance(map_url, str)
-    assert "static.api.2gis.com" in map_url
+    assert "static.maps.2gis.com" in map_url
 

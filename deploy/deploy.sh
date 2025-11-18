@@ -4,7 +4,7 @@ set -e
 
 # Настройки подключения к серверу (можно переопределить через переменные окружения)
 DEPLOY_USER="${DEPLOY_USER:-zambas124}"
-SERVER_IP="${SERVER_IP:-158.160.120.116}"
+SERVER_IP="${SERVER_IP:-158.160.120.62}"
 SERVER="$DEPLOY_USER@$SERVER_IP"
 PROJECT_DIR="/home/$DEPLOY_USER/air"
 REPO_URL="https://github.com/zamb124/air.git"
@@ -205,7 +205,7 @@ deploy_local() {
     if [ "$SSL_CONFIG" = "ssl" ]; then
         sudo tee /etc/nginx/sites-available/air > /dev/null << NGINX_EOF
 server {
-    listen 80;
+    listen 80 default_server;
     server_name $SERVER_NAME;
 
     location /.well-known/acme-challenge/ {
@@ -218,7 +218,7 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl http2 default_server;
     server_name $SERVER_NAME;
 
     ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
@@ -253,7 +253,7 @@ NGINX_EOF
     else
         sudo tee /etc/nginx/sites-available/air > /dev/null << NGINX_EOF
 server {
-    listen 80;
+    listen 80 default_server;
     server_name $SERVER_NAME;
 
     location / {
@@ -262,7 +262,7 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl http2 default_server;
     server_name $SERVER_NAME;
 
     ssl_certificate /etc/nginx/ssl/selfsigned.crt;
@@ -301,10 +301,27 @@ NGINX_EOF
     fi
     sudo ln -s /etc/nginx/sites-available/air /etc/nginx/sites-enabled/
     
+    echo "🔧 Отключаем дефолтную конфигурацию nginx..."
+    if [ -f /etc/nginx/sites-enabled/default ]; then
+        sudo rm /etc/nginx/sites-enabled/default
+        echo "✅ Дефолтная конфигурация отключена"
+    fi
+    if [ -L /etc/nginx/sites-enabled/default ]; then
+        sudo rm /etc/nginx/sites-enabled/default
+        echo "✅ Дефолтная конфигурация (симлинк) отключена"
+    fi
+    # Удаляем все другие дефолтные конфигурации
+    sudo rm -f /etc/nginx/sites-enabled/default-* 2>/dev/null || true
+    echo "✅ Все дефолтные конфигурации удалены"
+    
+    echo "📋 Список активных конфигураций nginx:"
+    ls -la /etc/nginx/sites-enabled/ || true
+    
     echo "🔍 Проверяем конфигурацию nginx..."
     if sudo nginx -t; then
         echo "✅ Конфигурация nginx валидна, перезагружаем..."
-        sudo systemctl reload nginx
+        sudo systemctl reload nginx || sudo systemctl restart nginx
+        echo "✅ Nginx перезагружен"
     else
         echo "❌ Ошибка в конфигурации nginx!"
         exit 1
@@ -337,7 +354,10 @@ ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 $SERVER bash << ENDSSH
     PROJECT_DIR="$PROJECT_DIR"
     REPO_URL="$REPO_URL"
     
-    if [ -d "\$PROJECT_DIR" ]; then
+    # Создаем директорию если не существует
+    mkdir -p "\$PROJECT_DIR"
+    
+    if [ -d "\$PROJECT_DIR/.git" ]; then
         echo "📂 Репозиторий уже существует, обновляем..."
         cd \$PROJECT_DIR
         git pull origin master
@@ -346,6 +366,19 @@ ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 $SERVER bash << ENDSSH
         git clone \$REPO_URL \$PROJECT_DIR
         cd \$PROJECT_DIR
     fi
+ENDSSH
+
+    echo "📝 Копируем config.json на сервер..."
+    if [ -f config.json ]; then
+        scp -o ConnectTimeout=30 config.json $SERVER:$PROJECT_DIR/config.json
+        echo "✅ config.json скопирован на сервер"
+    else
+        echo "⚠️  config.json не найден локально, будет создан из примера на сервере"
+    fi
+
+ssh -o ConnectTimeout=30 -o ServerAliveInterval=60 $SERVER bash << ENDSSH
+    PROJECT_DIR="$PROJECT_DIR"
+    cd "\$PROJECT_DIR"
 
     echo "🐳 Проверяем Docker..."
     if ! command -v docker &> /dev/null; then
@@ -537,7 +570,7 @@ ssh -o ConnectTimeout=60 -o ServerAliveInterval=30 -o ServerAliveCountMax=10 -o 
     if [ "\$SSL_CONFIG" = "ssl" ]; then
         cat > /tmp/air-nginx-ssl.conf << NGINX_EOF
 server {
-    listen 80;
+    listen 80 default_server;
     server_name \$SERVER_NAME;
 
     location /.well-known/acme-challenge/ {
@@ -550,7 +583,7 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl http2 default_server;
     server_name \$SERVER_NAME;
 
     ssl_certificate /etc/letsencrypt/live/\$DOMAIN/fullchain.pem;
@@ -598,7 +631,7 @@ NGINX_EOF
     else
         cat > /tmp/air-nginx-ssl.conf << NGINX_EOF
 server {
-    listen 80;
+    listen 80 default_server;
     server_name \$SERVER_NAME;
 
     location / {
@@ -607,7 +640,7 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl http2 default_server;
     server_name \$SERVER_NAME;
 
     ssl_certificate /etc/nginx/ssl/selfsigned.crt;
@@ -647,15 +680,29 @@ NGINX_EOF
     fi
     sudo ln -s /etc/nginx/sites-available/air /etc/nginx/sites-enabled/
     
+    echo "🔧 Отключаем дефолтную конфигурацию nginx..."
+    if [ -f /etc/nginx/sites-enabled/default ]; then
+        sudo rm /etc/nginx/sites-enabled/default
+        echo "✅ Дефолтная конфигурация отключена"
+    fi
+    if [ -L /etc/nginx/sites-enabled/default ]; then
+        sudo rm /etc/nginx/sites-enabled/default
+        echo "✅ Дефолтная конфигурация (симлинк) отключена"
+    fi
+    # Удаляем все другие дефолтные конфигурации
+    sudo rm -f /etc/nginx/sites-enabled/default-* 2>/dev/null || true
+    echo "✅ Все дефолтные конфигурации удалены"
+    
     echo "🔍 Проверяем конфигурацию nginx..."
     if sudo nginx -t; then
         echo "✅ Конфигурация nginx валидна, перезагружаем..."
-        sudo systemctl reload nginx
+        sudo systemctl reload nginx || sudo systemctl restart nginx
+        echo "✅ Nginx перезагружен"
     else
         echo "❌ Ошибка в конфигурации nginx!"
         exit 1
     fi
-    
+
     if [ "\$SSL_CONFIG" = "ssl" ]; then
         echo "🔄 Настраиваем автоматическое обновление сертификата Let's Encrypt..."
         (crontab -l 2>/dev/null | grep -v "certbot renew" ; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab - || true

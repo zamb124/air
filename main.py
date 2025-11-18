@@ -2,13 +2,14 @@ from fastapi import FastAPI
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from app.services.aviaradar import update_flights_data
+from app.services.aviaradar import update_flights_data, delete_old_flights
 from app.routers import flights, weather, twogis
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 UPDATE_INTERVAL_SECONDS = 120
+CLEANUP_INTERVAL_SECONDS = 3600
 
 
 async def background_updater():
@@ -23,13 +24,26 @@ async def background_updater():
         await asyncio.sleep(UPDATE_INTERVAL_SECONDS)
 
 
+async def background_cleaner():
+    logger.info("Фоновая задача очистки старых рейсов запущена")
+    await asyncio.sleep(60)
+    while True:
+        try:
+            await delete_old_flights()
+        except Exception as e:
+            logger.error(f"Ошибка при очистке старых рейсов: {e}", exc_info=True)
+        await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.db import init_db
     await init_db()
-    task = asyncio.create_task(background_updater())
+    updater_task = asyncio.create_task(background_updater())
+    cleaner_task = asyncio.create_task(background_cleaner())
     yield
-    task.cancel()
+    updater_task.cancel()
+    cleaner_task.cancel()
 
 
 app = FastAPI(

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 CATALOG_API_BASE = "https://catalog.api.2gis.com"
 ROUTING_API_BASE = "https://routing.api.2gis.com"
-STATIC_API_BASE = "https://static.maps.2gis.com"
+STATIC_API_BASE = "http://static.maps.2gis.com"
 
 
 def _get_api_key() -> str:
@@ -189,11 +189,10 @@ async def get_route_map(lat_from: float, lon_from: float, lat_to: float, lon_to:
     center_lon = (lon_from + lon_to) / 2
     
     static_params = {
-        "center": f"{center_lon},{center_lat}",
-        "zoom": "15",
-        "size": "600x400",
-        "markers": f"{lon_from},{lat_from}|{lon_to},{lat_to}",
-        "key": api_key
+        "s": "600x400",
+        "c": f"{center_lat},{center_lon}",
+        "z": "15",
+        "pt": f"{lat_from},{lon_from}~{lat_to},{lon_to}"
     }
     
     map_url = f"{STATIC_API_BASE}/1.0?{urlencode(static_params)}"

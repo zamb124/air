@@ -1,5 +1,5 @@
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import httpx
 import aiosqlite
 import logging
@@ -144,6 +144,36 @@ async def update_flights_data():
         logger.error(f"Ошибка при обновлении данных о рейсах: {e}", exc_info=True)
         if conn:
             await conn.rollback()
+    finally:
+        if conn:
+            await conn.close()
+
+
+async def delete_old_flights():
+    conn = None
+    try:
+        conn = await get_db_connection()
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=7)
+        cutoff_str = cutoff_date.isoformat()
+        
+        cursor = await conn.execute(
+            "DELETE FROM flights WHERE updated_at < ?",
+            (cutoff_str,)
+        )
+        deleted_count = cursor.rowcount
+        await conn.commit()
+        
+        if deleted_count > 0:
+            logger.info(f"Удалено старых рейсов: {deleted_count}")
+        else:
+            logger.debug("Старых рейсов для удаления не найдено")
+        
+        return deleted_count
+    except Exception as e:
+        logger.error(f"Ошибка при удалении старых рейсов: {e}", exc_info=True)
+        if conn:
+            await conn.rollback()
+        raise
     finally:
         if conn:
             await conn.close()
