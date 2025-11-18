@@ -1,6 +1,9 @@
 {
   "gismeteo": {
     "api_token": "your_gismeteo_token_here"
+  },
+  "twogis": {
+    "api_key": "b498620d-1954-4d99-bbaf-37334156a75e"
   }
 }
 

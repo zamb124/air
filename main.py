@@ -3,7 +3,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from app.services.aviaradar import update_flights_data
-from app.routers import flights, weather
+from app.routers import flights, weather, twogis
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -41,6 +41,7 @@ app = FastAPI(
 
 app.include_router(flights.router)
 app.include_router(weather.router)
+app.include_router(twogis.router)
 
 
 @app.get("/")
@@ -91,6 +92,30 @@ async def root():
                             "date_to": "Дата окончания в формате YYYY-MM-DD (обязательно)"
                         },
                         "example": "GET /weather?city=Moscow&date_from=2025-01-15&date_to=2025-01-20"
+                    }
+                }
+            },
+            "twogis": {
+                "description": "Данные от 2GIS API",
+                "endpoints": {
+                    "GET /twogis/hotels": {
+                        "description": "Поиск отелей в городе",
+                        "query_params": {
+                            "city": "Название города (обязательно)",
+                            "date_from": "Опционально. Дата заезда (формат: YYYY-MM-DD)",
+                            "date_to": "Опционально. Дата выезда (формат: YYYY-MM-DD)"
+                        },
+                        "example": "GET /twogis/hotels?city=Москва&date_from=2025-01-15&date_to=2025-01-20"
+                    },
+                    "GET /twogis/route-map": {
+                        "description": "Получить URL статической карты с маршрутом между двумя точками",
+                        "query_params": {
+                            "lat_from": "Широта точки отправления (обязательно)",
+                            "lon_from": "Долгота точки отправления (обязательно)",
+                            "lat_to": "Широта точки назначения (обязательно)",
+                            "lon_to": "Долгота точки назначения (обязательно)"
+                        },
+                        "example": "GET /twogis/route-map?lat_from=55.7522&lon_from=37.6156&lat_to=55.7558&lon_to=37.6173"
                     }
                 }
             }

@@ -53,7 +53,24 @@ uv run pytest tests/test_flights.py -v
 - `POST /flights/update` - обновление данных
 
 ### Weather (Погода)
-- `GET /weather/current?city=Москва` - текущая погода
+- `GET /weather?city=Moscow&date_from=2025-01-15&date_to=2025-01-20` - прогноз погоды
+
+### 2GIS
+- `GET /twogis/hotels?city=Москва` - поиск отелей в городе
+- `GET /twogis/route-map?lat_from=55.7522&lon_from=37.6156&lat_to=55.7558&lon_to=37.6173` - карта маршрута
+
+## Примеры запросов
+
+```bash
+# Поиск отелей в Москве
+curl "http://localhost:8000/twogis/hotels?city=Москва"
+
+# Поиск отелей с датами
+curl "http://localhost:8000/twogis/hotels?city=Москва&date_from=2025-01-15&date_to=2025-01-20"
+
+# Карта маршрута
+curl "http://localhost:8000/twogis/route-map?lat_from=55.7522&lon_from=37.6156&lat_to=55.7558&lon_to=37.6173"
+```
 
 ## Добавление нового модуля
 
