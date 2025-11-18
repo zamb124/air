@@ -3,7 +3,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from app.services.aviaradar import update_flights_data, delete_old_flights
-from app.routers import flights, weather, twogis
+from app.routers import flights, weather, twogis, widgets
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -56,6 +56,7 @@ app = FastAPI(
 app.include_router(flights.router)
 app.include_router(weather.router)
 app.include_router(twogis.router)
+app.include_router(widgets.router)
 
 
 @app.get("/")
@@ -130,6 +131,23 @@ async def root():
                             "lon_to": "Долгота точки назначения (обязательно)"
                         },
                         "example": "GET /twogis/route-map?lat_from=55.7522&lon_from=37.6156&lat_to=55.7558&lon_to=37.6173"
+                    }
+                }
+            },
+            "widgets": {
+                "description": "API для виджетов",
+                "endpoints": {
+                    "GET /widgets/view": {
+                        "description": "Получить представление с виджетами",
+                        "query_params": {
+                            "session_id": "Опционально. Идентификатор сессии",
+                            "context": "Опционально. Контекст использования (travel, savings)"
+                        },
+                        "example": "GET /widgets/view?session_id=123&context=travel"
+                    },
+                    "POST /widgets/action": {
+                        "description": "Выполнить действие от виджета",
+                        "example": "POST /widgets/action"
                     }
                 }
             }
