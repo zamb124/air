@@ -1,0 +1,236 @@
+{
+    "view_id": "travel_view_123",
+    "title": "Поездка в Питер",
+    "goal_id": "123",
+    "context": "travel",
+    "widgets": [
+        {
+            "id": "widget_flights",
+            "type": "large_card_carousel",
+            "title": "Выберите авиабилеты",
+            "group": "Подготовка",
+            "group_order": 1,
+            "datetime": "2025-11-21T10:00:00",
+            "order": 1,
+            "items": [
+                {
+                    "id": "flight_1",
+                    "text": "SU 123 Москва → Сочи",
+                    "subtitle": "15 янв, 10:00, от 5 000 руб",
+                    "image_url": null,
+                    "icon": "✈️",
+                    "metadata": {
+                        "price": 5000
+                    },
+                    "actions": [
+                        {
+                            "id": "action_select_flight_1",
+                            "type": "send_message",
+                            "button_text": "Выбрать",
+                            "message": "Выбрать рейс SU 123 Москва-Сочи на 15 янв 10:00 за 5000 руб",
+                            "url": null
+                        }
+                    ]
+                },
+                {
+                    "id": "flight_2",
+                    "text": "DP 456 Москва → Сочи",
+                    "subtitle": "15 янв, 14:30, от 4 500 руб",
+                    "image_url": null,
+                    "icon": "✈️",
+                    "metadata": {
+                        "price": 4500
+                    },
+                    "actions": [
+                        {
+                            "id": "action_select_flight_2",
+                            "type": "send_message",
+                            "button_text": "Выбрать",
+                            "message": "Выбрать рейс DP 456 Москва-Сочи на 15 янв 14:30 за 4500 руб",
+                            "url": null
+                        }
+                    ]
+                }
+            ],
+            "questions": null,
+            "data": null,
+            "actions": null
+        },
+        {
+            "id": "widget_hotel_day1",
+            "type": "card_with_button",
+            "title": "Ваш отель",
+            "group": "2025-11-21",
+            "group_order": 2,
+            "datetime": "2025-11-21T11:00:00",
+            "order": 1,
+            "items": [
+                {
+                    "id": "hotel_1",
+                    "text": "Corinthia",
+                    "subtitle": "Заселение в 11:00, 7 декабря. Выселение до 9:00, 9 декабря",
+                    "image_url": "https://example.com/hotel1.jpg",
+                    "icon": null,
+                    "metadata": {
+                        "address": "г. Санкт-Петербург, Невский пр-т, д. 57"
+                    },
+                    "actions": null
+                }
+            ],
+            "questions": null,
+            "data": null,
+            "actions": [
+                {
+                    "id": "action_open_map",
+                    "type": "open_url",
+                    "button_text": "Открыть на карте",
+                    "message": null,
+                    "url": "https://maps.yandex.ru/..."
+                }
+            ]
+        },
+        {
+            "id": "widget_restaurants_day1",
+            "type": "small_card_carousel",
+            "title": "Завтрак в ресторане",
+            "group": "2025-11-21",
+            "group_order": 2,
+            "datetime": "2025-11-21T11:00:00",
+            "order": 2,
+            "items": [
+                {
+                    "id": "restaurant_1",
+                    "text": "Mad Espresso",
+                    "subtitle": null,
+                    "image_url": "https://example.com/rest1.jpg",
+                    "icon": null,
+                    "metadata": null,
+                    "actions": [
+                        {
+                            "id": "action_restaurant_1",
+                            "type": "send_message",
+                            "button_text": "Выбрать",
+                            "message": "Показать детали ресторана Mad Espresso",
+                            "url": null
+                        }
+                    ]
+                },
+                {
+                    "id": "restaurant_2",
+                    "text": "Animals",
+                    "subtitle": null,
+                    "image_url": "https://example.com/rest2.jpg",
+                    "icon": null,
+                    "metadata": null,
+                    "actions": [
+                        {
+                            "id": "action_restaurant_2",
+                            "type": "send_message",
+                            "button_text": "Выбрать",
+                            "message": "Показать детали ресторана Animals",
+                            "url": null
+                        }
+                    ]
+                },
+                {
+                    "id": "restaurant_3",
+                    "text": "Aster",
+                    "subtitle": null,
+                    "image_url": "https://example.com/rest3.jpg",
+                    "icon": null,
+                    "metadata": null,
+                    "actions": [
+                        {
+                            "id": "action_restaurant_3",
+                            "type": "send_message",
+                            "button_text": "Выбрать",
+                            "message": "Что лучше попробовать в Aster в Питер на завтрак",
+                            "url": null
+                        }
+                    ]
+                }
+            ],
+            "questions": null,
+            "data": null,
+            "actions": null
+        },
+        {
+            "id": "widget_map_hotel",
+            "type": "map",
+            "title": "Карта отелей",
+            "group": "2025-11-21",
+            "group_order": 2,
+            "datetime": "2025-11-21T11:00:00",
+            "order": 3,
+            "items": null,
+            "questions": null,
+            "data": {
+                "center": {
+                    "lat": 55.7522,
+                    "lon": 37.6156
+                },
+                "zoom": 13,
+                "markers": [
+                    {
+                        "lat": 55.7522,
+                        "lon": 37.6156,
+                        "title": "Corinthia"
+                    }
+                ]
+            },
+            "actions": null
+        },
+        {
+            "id": "widget_guides_day2",
+            "type": "small_card_carousel",
+            "title": "Выберите гида",
+            "group": "2025-11-22",
+            "group_order": 3,
+            "datetime": "2025-11-22T10:00:00",
+            "order": 1,
+            "items": [
+                {
+                    "id": "guide_1",
+                    "text": "Иван Иванов",
+                    "subtitle": "Экскурсии по Москве",
+                    "image_url": "https://example.com/guide1.jpg",
+                    "icon": "👨‍🏫",
+                    "metadata": {
+                        "rating": 4.8
+                    },
+                    "actions": [
+                        {
+                            "id": "action_select_guide_1",
+                            "type": "send_message",
+                            "button_text": "Забронировать",
+                            "message": "Забронировать гида Иван Иванов",
+                            "url": null
+                        }
+                    ]
+                },
+                {
+                    "id": "guide_2",
+                    "text": "Мария Петрова",
+                    "subtitle": "Экскурсии по Красной площади",
+                    "image_url": "https://example.com/guide2.jpg",
+                    "icon": "👩‍🏫",
+                    "metadata": {
+                        "rating": 4.6
+                    },
+                    "actions": [
+                        {
+                            "id": "action_select_guide_2",
+                            "type": "send_message",
+                            "button_text": "Забронировать",
+                            "message": "Забронировать гида Мария Петрова",
+                            "url": null
+                        }
+                    ]
+                }
+            ],
+            "questions": null,
+            "data": null,
+            "actions": null
+        }
+    ]
+}

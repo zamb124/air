@@ -1,0 +1,54 @@
+import pytest
+from fastapi.testclient import TestClient
+from main import app
+
+client = TestClient(app)
+
+
+def test_openrouter_chat_completions_real():
+    response = client.post(
+        "/openrouter/chat/completions",
+        json={
+            "model": "x-ai/grok-code-fast-1",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Say hello in one word"
+                }
+            ]
+        }
+    )
+    
+    if response.status_code != 200:
+        print(f"Response status: {response.status_code}")
+        print(f"Response body: {response.text}")
+    
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    data = response.json()
+    
+    assert "id" in data
+    assert "choices" in data
+    assert len(data["choices"]) > 0
+    assert "message" in data["choices"][0]
+    assert "content" in data["choices"][0]["message"]
+    assert len(data["choices"][0]["message"]["content"]) > 0
+
+
+def test_openrouter_models_list_real():
+    response = client.get("/openrouter/models")
+    
+    if response.status_code != 200:
+        print(f"Response status: {response.status_code}")
+        print(f"Response body: {response.text}")
+    
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    data = response.json()
+    
+    assert "data" in data
+    assert isinstance(data["data"], list)
+    assert len(data["data"]) > 0
+    
+    first_model = data["data"][0]
+    assert "id" in first_model
+    assert "name" in first_model or "object" in first_model
+
