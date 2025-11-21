@@ -1,59 +1,27 @@
-# API контракт для виджетов
+# Документация API виджетов для фронтенда
 
 ## Описание
 
-Универсальная система виджетов для отображения различных типов контента в мобильных приложениях и на веб-сайтах. Виджеты поддерживают интерактивность, таймлайны, формы и различные типы действий.
-
-## Основные концепции
-
-### Виджет
-Универсальный UI-компонент, независимый от домена. В виджеты можно поместить любые данные (отели, билеты, гиды и т.д.).
-
-### Элемент (Item)
-Единица данных внутри виджета. Имеет универсальную структуру с полями для текста, изображений, метаданных и действий.
-
-### Действие (Action)
-Определяет поведение при взаимодействии с виджетом или элементом (отправка сообщения в чат, открытие URL, навигация и т.д.).
-
-### Дата виджета
-Виджет может иметь поле `date`, которое указывает фронтенду, когда его показывать в сетке/таблице.
+Универсальная система виджетов для отображения различных типов контента. Виджеты поддерживают интерактивность, группировку по датам, таймлайны и различные типы действий.
 
 ## API Endpoints
 
 ### GET /widgets/view
 
-Получение представления (view) с виджетами для пользователя/сессии.
+Получение представления (view) с виджетами.
 
 **Query параметры:**
-- `session_id` (string, опционально) - идентификатор сессии пользователя
-- `context` (string, опционально) - контекст использования (travel, savings и т.д.)
+- `goal_id` (string, опционально) - идентификатор цели
+- `context` (string, опционально) - контекст использования (`travel`, `savings`, или `default`)
 
 **Response:**
 ```json
 {
-  "view_id": "view_123",
-  "title": "Планирование путешествия",
-  "metadata": {
-    "session_id": "session_123",
-    "context": "travel",
-    "updated_at": "2025-01-15T10:00:00Z"
-  },
-  "timeline": {
-    "enabled": true,
-    "start_date": "2025-01-15",
-    "end_date": "2025-01-20",
-    "dates": [
-      {
-        "date": "2025-01-15",
-        "label": "День 1",
-        "widgets": [...]
-      }
-    ]
-  },
-  "widgets": {
-    "before_timeline": [...],
-    "after_timeline": [...]
-  }
+  "view_id": "travel_view_123",
+  "title": "Поездка в Питер",
+  "goal_id": "goal_123",
+  "context": "travel",
+  "widgets": [...]
 }
 ```
 
@@ -64,596 +32,571 @@
 **Body:**
 ```json
 {
-  "view_id": "view_123",
-  "widget_id": "widget_1",
-  "item_id": "item_1",
-  "action_id": "action_1",
-  "session_id": "session_123",
-  "form_data": {...},
-  "context": {...}
+  "view_id": "travel_view_123",
+  "widget_id": "widget_flights",
+  "item_id": "flight_1",
+  "action_id": "action_select_flight_1",
+  "goal_id": "goal_123",
+  "data": {}
 }
 ```
 
-## Структура виджета
-
-### Базовая структура
-
+**Response:**
 ```json
 {
-  "id": "widget_123",
-  "type": "button" | "card_carousel" | "text_list" | "map" | "image" | "audio" | 
-          "video" | "form" | "calendar" | "timeline" | "progress" | "chart" | 
-          "accordion" | "tabs" | "stepper" | "divider" | "text",
-  "date": "2025-01-15",  // опционально, дата для отображения на фронтенде
-  "config": {
-    "title": "string",
-    "subtitle": "string",
-    "style": {...}
-  },
-  "items": [...],
-  "fields": [...],  // для form
-  "actions": [...]
+  "success": true,
+  "message": "Действие action_select_flight_1 выполнено",
+  "data": {
+    "action_id": "action_select_flight_1",
+    "data": {}
+  }
 }
 ```
 
-### Структура элемента (Item)
+## Структура данных
 
-```json
+### WidgetViewResponse
+
+Корневой объект ответа с виджетами.
+
+```typescript
 {
-  "id": "item_1",
-  "primary_text": "string",
-  "secondary_text": "string",
-  "tertiary_text": "string",
-  "image_url": "string",
-  "icon": "string",
-  "badge": "string",
-  "metadata": {
-    "price": 5000,
-    "rating": 4.5,
-    "coordinates": {"lat": 55.7522, "lon": 37.6156}
-  },
-  "actions": [...]
+  view_id: string;           // Уникальный идентификатор представления
+  title: string;             // Заголовок представления
+  goal_id?: string;          // Идентификатор цели (опционально)
+  context?: string;          // Контекст (travel, savings, default)
+  widgets: Widget[];         // Список виджетов
 }
 ```
 
-### Структура действия (Action)
+### Widget
 
-```json
+Базовый виджет.
+
+```typescript
 {
-  "id": "action_1",
-  "type": "send_message" | "open_url" | "navigate" | "update_view" | 
-          "submit_form" | "validate_form" | "show_widget",
-  "button_text": "string",
-  "button_style": "primary" | "secondary" | "outline" | "danger" | "link",
-  "message": "string",
-  "message_template": "string",
-  "url": "string",
-  "target": "string",
-  "validation": {...},
-  "required_fields": ["field1"],
-  "condition": {...}
+  id: string;                // Уникальный идентификатор виджета
+  type: "large_card_carousel" | "small_card_carousel" | "card_with_button" | "quiz" | "map";
+  title?: string;            // Заголовок виджета
+  group?: string;            // Группа для группировки виджетов (например, дата)
+  group_order?: number;      // Порядок в группе
+  datetime?: string;         // Дата и время в формате ISO 8601 (например, "2025-01-15T10:00:00")
+  order?: number;            // Порядок виджета
+  items?: Item[];            // Список элементов (для carousel и card_with_button)
+  questions?: QuizQuestion[]; // Список вопросов (для quiz)
+  data?: Record<string, any>; // Произвольные данные (для map)
+  actions?: Action[];        // Действия на уровне виджета
+}
+```
+
+### Item
+
+Элемент внутри виджета (карточка в карусели, элемент карты и т.д.).
+
+```typescript
+{
+  id: string;                // Уникальный идентификатор элемента
+  text: string;              // Основной текст
+  subtitle?: string;         // Подзаголовок
+  image_url?: string;        // URL изображения
+  icon?: string;             // Эмодзи или иконка (например, "✈️")
+  metadata?: Record<string, any>; // Метаданные (цена, рейтинг, адрес и т.д.)
+  actions?: Action[];        // Действия на уровне элемента
+}
+```
+
+### Action
+
+Действие при взаимодействии с виджетом или элементом.
+
+```typescript
+{
+  id: string;                // Уникальный идентификатор действия
+  type: "send_message" | "open_url";
+  button_text: string;       // Текст кнопки
+  message?: string;          // Сообщение для отправки (если type="send_message")
+  url?: string;              // URL для открытия (если type="open_url")
+}
+```
+
+### QuizQuestion
+
+Вопрос для квиза.
+
+```typescript
+{
+  id: string;                // Уникальный идентификатор вопроса
+  text: string;              // Текст вопроса
+  options: QuizOption[];     // Варианты ответов
+}
+```
+
+### QuizOption
+
+Вариант ответа в квизе.
+
+```typescript
+{
+  id: string;                // Уникальный идентификатор варианта
+  text: string;              // Текст варианта
+  is_correct?: boolean;      // Является ли правильным ответом (опционально)
 }
 ```
 
 ## Типы виджетов
 
-### button
+В системе доступны следующие типы виджетов:
 
-Простая кнопка с действием.
+1. **`large_card_carousel`** - Большая горизонтальная карусель карточек
+2. **`small_card_carousel`** - Небольшая горизонтальная карусель карточек
+3. **`card_with_button`** - Карточка с одной или несколькими кнопками
+4. **`quiz`** - Квиз с вопросами и вариантами ответов
+5. **`map`** - Интерактивная карта с маркерами
 
+### 1. large_card_carousel
+
+Большая горизонтальная карусель карточек. Используется для отображения списка вариантов (рейсы, отели, машины и т.д.).
+
+**Структура:**
+- Обязательно: `items` - список элементов
+- Опционально: `title`, `group`, `datetime`, `order`
+
+**Пример:**
 ```json
 {
-  "type": "button",
-  "config": {
-    "title": "Выберите действие"
-  },
+  "id": "widget_flights",
+  "type": "large_card_carousel",
+  "title": "Выберите авиабилеты",
+  "group": "Подготовка",
+  "group_order": 1,
+  "datetime": "2025-01-15T10:00:00",
+  "order": 1,
   "items": [
     {
-      "id": "btn_1",
-      "primary_text": "Найти билеты",
+      "id": "flight_1",
+      "text": "SU 123 Москва → Сочи",
+      "subtitle": "15 янв, 10:00, от 5 000 руб",
       "icon": "✈️",
-      "actions": [{
-        "type": "send_message",
-        "message": "Показать варианты авиабилетов",
-        "button_text": "Найти билеты",
-        "button_style": "primary"
-      }]
-    }
-  ]
-}
-```
-
-### card_carousel
-
-Горизонтальная карусель карточек.
-
-```json
-{
-  "type": "card_carousel",
-  "config": {
-    "title": "Варианты отелей",
-    "show_dots": true,
-    "auto_play": false
-  },
-  "items": [...]
-}
-```
-
-### text_list
-
-Вертикальный список элементов.
-
-```json
-{
-  "type": "text_list",
-  "config": {
-    "title": "Список гидов",
-    "layout": "compact" | "spacious"
-  },
-  "items": [...]
-}
-```
-
-### form
-
-Форма с полями ввода.
-
-**Структура поля:**
-```json
-{
-  "id": "field_name",
-  "type": "text" | "email" | "tel" | "number" | "date" | "time" | 
-          "datetime" | "select" | "multiselect" | "checkbox" | "radio" | 
-          "textarea" | "file" | "password",
-  "label": "Имя",
-  "placeholder": "Введите имя",
-  "required": true,
-  "validation": {
-    "min_length": 2,
-    "max_length": 50,
-    "pattern": "...",
-    "error_message": "..."
-  },
-  "options": [...],
-  "default_value": "...",
-  "help_text": "..."
-}
-```
-
-**Пример формы:**
-```json
-{
-  "type": "form",
-  "config": {
-    "title": "Забронировать отель"
-  },
-  "fields": [
-    {
-      "id": "name",
-      "type": "text",
-      "label": "Ваше имя",
-      "required": true,
-      "validation": {"min_length": 2}
-    },
-    {
-      "id": "email",
-      "type": "email",
-      "label": "Email",
-      "required": true
-    }
-  ],
-  "actions": [{
-    "type": "submit_form",
-    "message_template": "Забронировать отель для {name}, email: {email}",
-    "button_text": "Забронировать"
-  }]
-}
-```
-
-### map
-
-Карта с маркерами.
-
-```json
-{
-  "type": "map",
-  "config": {
-    "title": "Карта отелей",
-    "center": {"lat": 55.7522, "lon": 37.6156},
-    "zoom": 13,
-    "height": 400
-  },
-  "items": [
-    {
-      "id": "marker_1",
-      "primary_text": "Отель Москва",
       "metadata": {
-        "lat": 55.7522,
-        "lon": 37.6156,
-        "marker_color": "red"
-      },
-      "actions": [...]
-    }
-  ]
-}
-```
-
-### image
-
-Изображение.
-
-```json
-{
-  "type": "image",
-  "config": {
-    "aspect_ratio": "16:9",
-    "fit": "cover" | "contain"
-  },
-  "items": [
-    {
-      "id": "img_1",
-      "image_url": "https://...",
-      "primary_text": "Красная площадь",
-      "actions": [...]
-    }
-  ]
-}
-```
-
-### audio
-
-Аудио проигрыватель.
-
-```json
-{
-  "type": "audio",
-  "config": {
-    "title": "Аудио экскурсия"
-  },
-  "items": [
-    {
-      "id": "audio_1",
-      "primary_text": "Экскурсия по Красной площади",
-      "metadata": {
-        "audio_url": "https://...",
-        "duration": 3600,
-        "thumbnail_url": "..."
-      }
-    }
-  ]
-}
-```
-
-### video
-
-Видео проигрыватель.
-
-```json
-{
-  "type": "video",
-  "config": {
-    "title": "Видео обзор",
-    "autoplay": false,
-    "controls": true
-  },
-  "items": [
-    {
-      "id": "video_1",
-      "metadata": {
-        "video_url": "https://...",
-        "thumbnail_url": "...",
-        "duration": 300
-      }
-    }
-  ]
-}
-```
-
-### calendar
-
-Календарь для выбора даты.
-
-```json
-{
-  "type": "calendar",
-  "config": {
-    "title": "Выберите дату",
-    "mode": "single" | "range",
-    "min_date": "2025-01-01",
-    "max_date": "2025-12-31"
-  },
-  "items": [
-    {
-      "id": "date_2025-01-15",
-      "metadata": {
-        "date": "2025-01-15",
-        "available": true,
         "price": 5000
       },
-      "actions": [...]
+      "actions": [
+        {
+          "id": "action_select_flight_1",
+          "type": "send_message",
+          "button_text": "Выбрать",
+          "message": "Выбрать рейс SU 123 Москва-Сочи на 15 янв 10:00 за 5000 руб"
+        }
+      ]
     }
   ]
 }
 ```
 
-### timeline
+**Особенности отображения:**
+- Горизонтальная прокрутка
+- Крупные карточки с изображениями/иконками
+- Подходит для важного контента, требующего внимания
 
-Таймлайн событий.
+### 2. small_card_carousel
 
+Небольшая горизонтальная карусель карточек. Используется для дополнительных вариантов (рестораны, гиды, этапы и т.д.).
+
+**Структура:**
+- Обязательно: `items` - список элементов
+- Опционально: `title`, `group`, `datetime`, `order`
+
+**Пример:**
 ```json
 {
-  "type": "timeline",
-  "config": {
-    "title": "Путешествие",
-    "orientation": "vertical" | "horizontal"
-  },
+  "id": "widget_restaurants_day1",
+  "type": "small_card_carousel",
+  "title": "Завтрак в ресторане",
+  "group": "2025-01-15",
+  "group_order": 2,
+  "datetime": "2025-01-15T11:00:00",
+  "order": 2,
   "items": [
     {
-      "id": "event_1",
-      "primary_text": "Прибытие в отель",
-      "secondary_text": "15 янв, 14:00",
+      "id": "restaurant_1",
+      "text": "Mad Espresso",
+      "image_url": "https://example.com/rest1.jpg",
+      "actions": [
+        {
+          "id": "action_restaurant_1",
+          "type": "send_message",
+          "button_text": "Выбрать",
+          "message": "Показать детали ресторана Mad Espresso"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Особенности отображения:**
+- Горизонтальная прокрутка
+- Компактные карточки
+- Подходит для дополнительного контента
+
+### 3. card_with_button
+
+Карточка с одной или несколькими кнопками. Используется для отображения одного объекта с действиями (отель, прогресс и т.д.).
+
+**Структура:**
+- Обязательно: `items` - список элементов (обычно один элемент)
+- Обязательно: `actions` - действия на уровне виджета
+- Опционально: `title`, `group`, `datetime`, `order`
+
+**Пример:**
+```json
+{
+  "id": "widget_hotel_day1",
+  "type": "card_with_button",
+  "title": "Ваш отель",
+  "group": "2025-01-15",
+  "group_order": 2,
+  "datetime": "2025-01-15T11:00:00",
+  "order": 1,
+  "items": [
+    {
+      "id": "hotel_1",
+      "text": "Corinthia",
+      "subtitle": "Заселение в 11:00, 7 декабря. Выселение до 9:00, 9 декабря",
+      "image_url": "https://example.com/hotel1.jpg",
       "metadata": {
-        "datetime": "2025-01-15T14:00:00",
-        "status": "completed" | "upcoming" | "in_progress"
+        "address": "г. Санкт-Петербург, Невский пр-т, д. 57"
       }
     }
+  ],
+  "actions": [
+    {
+      "id": "action_open_map",
+      "type": "open_url",
+      "button_text": "Открыть на карте",
+      "url": "https://maps.yandex.ru/..."
+    }
   ]
 }
 ```
 
-### progress
+**Особенности отображения:**
+- Вертикальная карточка
+- Кнопки отображаются внизу карточки или внутри
+- Подходит для отображения одного объекта
 
-Индикатор прогресса.
+### 4. quiz
 
+Квиз с вопросами и вариантами ответов.
+
+**Структура:**
+- Обязательно: `questions` - список вопросов
+- Опционально: `title`, `group`, `datetime`, `order`
+
+**Пример:**
 ```json
 {
-  "type": "progress",
-  "config": {
-    "title": "Прогресс накопления"
-  },
-  "items": [
+  "id": "widget_quiz",
+  "type": "quiz",
+  "title": "Первый квиз",
+  "group": "Первый квиз",
+  "group_order": 2,
+  "datetime": "2025-01-15T10:00:00",
+  "order": 1,
+  "questions": [
     {
-      "id": "progress_1",
-      "primary_text": "Накоплено 150 000 из 300 000 руб",
-      "metadata": {
-        "current": 150000,
-        "total": 300000,
-        "percentage": 50,
-        "unit": "руб"
+      "id": "question_1",
+      "text": "Какой тип ИИ представлен голосовым помощником?",
+      "options": [
+        {
+          "id": "opt_1",
+          "text": "Реактивный ИИ (Reactive AI)",
+          "is_correct": false
+        },
+        {
+          "id": "opt_2",
+          "text": "Общий ИИ (General AI)",
+          "is_correct": false
+        },
+        {
+          "id": "opt_3",
+          "text": "Узкий ИИ (Narrow AI)",
+          "is_correct": true
+        },
+        {
+          "id": "opt_4",
+          "text": "Искусственный Суперинтеллект",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Особенности отображения:**
+- Вопросы отображаются последовательно
+- Варианты ответов - кликабельные кнопки или радиокнопки
+- После выбора ответа можно показать правильность (если `is_correct` указан)
+
+### 5. map
+
+Интерактивная карта с маркерами.
+
+**Структура:**
+- Обязательно: `data` - данные карты
+- Опционально: `title`, `group`, `datetime`, `order`
+
+**Формат `data`:**
+```typescript
+{
+  center: {
+    lat: number;  // Широта центра карты
+    lon: number;  // Долгота центра карты
+  };
+  zoom: number;   // Уровень масштабирования (1-20)
+  markers: Array<{
+    lat: number;  // Широта маркера
+    lon: number;  // Долгота маркера
+    title?: string; // Заголовок маркера (опционально)
+  }>;
+}
+```
+
+**Пример:**
+```json
+{
+  "id": "widget_map_hotel",
+  "type": "map",
+  "title": "Карта отелей",
+  "group": "2025-01-15",
+  "group_order": 2,
+  "datetime": "2025-01-15T11:00:00",
+  "order": 3,
+  "data": {
+    "center": {
+      "lat": 55.7522,
+      "lon": 37.6156
+    },
+    "zoom": 13,
+    "markers": [
+      {
+        "lat": 55.7522,
+        "lon": 37.6156,
+        "title": "Corinthia"
       }
-    }
-  ]
-}
-```
-
-### chart
-
-График или диаграмма.
-
-```json
-{
-  "type": "chart",
-  "config": {
-    "title": "Статистика расходов",
-    "chart_type": "line" | "bar" | "pie" | "area"
-  },
-  "items": [
-    {
-      "id": "chart_1",
-      "metadata": {
-        "data": [
-          {"label": "Янв", "value": 5000},
-          {"label": "Фев", "value": 7000}
-        ],
-        "labels": ["Январь", "Февраль"]
-      }
-    }
-  ]
-}
-```
-
-### accordion
-
-Аккордеон (раскрывающиеся секции).
-
-```json
-{
-  "type": "accordion",
-  "config": {
-    "title": "Часто задаваемые вопросы",
-    "multiple": true
-  },
-  "items": [
-    {
-      "id": "faq_1",
-      "primary_text": "Как отменить бронирование?",
-      "secondary_text": "Вы можете отменить бронирование..."
-    }
-  ]
-}
-```
-
-### tabs
-
-Вкладки.
-
-```json
-{
-  "type": "tabs",
-  "config": {
-    "title": "Информация"
-  },
-  "items": [
-    {
-      "id": "tab_1",
-      "primary_text": "Отели",
-      "metadata": {
-        "tab_id": "hotels"
-      }
-    }
-  ]
-}
-```
-
-### stepper
-
-Степпер (шаги процесса).
-
-```json
-{
-  "type": "stepper",
-  "config": {
-    "title": "Шаги планирования",
-    "orientation": "horizontal" | "vertical"
-  },
-  "items": [
-    {
-      "id": "step_1",
-      "primary_text": "Выбор отеля",
-      "metadata": {
-        "step_number": 1,
-        "status": "completed" | "active" | "pending",
-        "completed": true
-      }
-    }
-  ]
-}
-```
-
-### divider
-
-Разделитель.
-
-```json
-{
-  "type": "divider",
-  "config": {
-    "label": "Или"
+    ]
   }
 }
 ```
 
-### text
+**Особенности отображения:**
+- Интерактивная карта (можно использовать Яндекс.Карты, Google Maps и т.д.)
+- Маркеры отображаются на карте
+- При клике на маркер можно показать всплывающее окно с информацией
 
-Текстовый блок.
+## Группировка и сортировка
+
+Виджеты могут быть сгруппированы по датам или категориям с помощью полей `group`, `group_order`, `datetime` и `order`:
+
+- `group` - название группы (часто это дата в формате "YYYY-MM-DD")
+- `group_order` - порядок группы (меньше = выше)
+- `datetime` - дата и время для таймлайна
+- `order` - порядок внутри группы (меньше = выше)
+
+**Рекомендации по отображению:**
+
+1. Группируйте виджеты по `group`
+2. Сортируйте группы по `group_order` (по возрастанию)
+3. Сортируйте виджеты внутри группы по `order` (по возрастанию)
+4. Используйте `datetime` для отображения в таймлайне
+
+## Действия
+
+В системе доступны следующие типы действий:
+
+1. **`send_message`** - Отправка сообщения в чат
+2. **`open_url`** - Открытие URL в браузере или встроенном веб-вью
+
+### send_message
+
+Отправляет сообщение в чат. Используется для взаимодействия с ботом/агентом.
+
+```typescript
+{
+  type: "send_message";
+  message: string;  // Текст сообщения, которое будет отправлено
+}
+```
+
+**Обработка:**
+1. При клике на кнопку отправьте `POST /widgets/action` с данными действия
+2. Отправьте сообщение `message` в чат (через ваш чат-клиент)
+
+### open_url
+
+Открывает URL в браузере или встроенном веб-вью.
+
+```typescript
+{
+  type: "open_url";
+  url: string;  // URL для открытия
+}
+```
+
+**Обработка:**
+1. При клике на кнопку отправьте `POST /widgets/action` с данными действия
+2. Откройте `url` в браузере или встроенном веб-вью
+
+## Полные примеры ответов
+
+### Пример 1: Travel context
 
 ```json
 {
-  "type": "text",
-  "config": {
-    "title": "Информация"
-  },
-  "items": [
+  "view_id": "travel_view_123",
+  "title": "Поездка в Питер",
+  "goal_id": "goal_123",
+  "context": "travel",
+  "widgets": [
     {
-      "id": "text_1",
-      "primary_text": "Привет! Я помогу спланировать путешествие.",
-      "metadata": {
-        "format": "markdown" | "html" | "plain"
-      }
-    }
-  ]
-}
-```
-
-## Использование даты виджета
-
-Поле `date` в виджете используется фронтендом для:
-- Группировки виджетов по датам в сетке/календаре
-- Фильтрации виджетов по дате
-- Сортировки виджетов хронологически
-- Отображения виджетов в соответствующие дни таймлайна
-
-Пример:
-```json
-{
-  "id": "widget_hotel_selection",
-  "type": "card_carousel",
-  "date": "2025-01-15",
-  "config": {
-    "title": "Выберите отель на 15 января"
-  },
-  "items": [...]
-}
-```
-
-## Примеры использования
-
-### Планирование путешествия
-
-```json
-{
-  "view_id": "travel_plan_123",
-  "title": "Планирование путешествия в Москву",
-  "widgets": {
-    "before_timeline": [
-      {
-        "id": "widget_flights",
-        "type": "card_carousel",
-        "date": "2025-01-14",
-        "config": {"title": "Выберите билеты"},
-        "items": [
-          {
-            "id": "flight_1",
-            "primary_text": "SU 123 Москва → Сочи",
-            "secondary_text": "15 янв, 10:00, от 5000 руб",
-            "actions": [{
+      "id": "widget_flights",
+      "type": "large_card_carousel",
+      "title": "Выберите авиабилеты",
+      "group": "Подготовка",
+      "group_order": 1,
+      "datetime": "2025-01-15T10:00:00",
+      "order": 1,
+      "items": [
+        {
+          "id": "flight_1",
+          "text": "SU 123 Москва → Сочи",
+          "subtitle": "15 янв, 10:00, от 5 000 руб",
+          "icon": "✈️",
+          "metadata": {"price": 5000},
+          "actions": [
+            {
+              "id": "action_select_flight_1",
               "type": "send_message",
-              "message": "Выбрать рейс SU 123",
-              "button_text": "Выбрать"
-            }]
-          }
-        ]
-      }
-    ],
-    "after_timeline": []
-  },
-  "timeline": {
-    "enabled": true,
-    "dates": [
-      {
-        "date": "2025-01-15",
-        "widgets": [
-          {
-            "id": "widget_hotel_day1",
-            "type": "card_carousel",
-            "date": "2025-01-15",
-            "config": {"title": "Отели на 15 января"},
-            "items": [...]
-          }
-        ]
-      }
-    ]
-  }
+              "button_text": "Выбрать",
+              "message": "Выбрать рейс SU 123 Москва-Сочи на 15 янв 10:00 за 5000 руб"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "widget_hotel_day1",
+      "type": "card_with_button",
+      "title": "Ваш отель",
+      "group": "2025-01-15",
+      "group_order": 2,
+      "datetime": "2025-01-15T11:00:00",
+      "order": 1,
+      "items": [
+        {
+          "id": "hotel_1",
+          "text": "Corinthia",
+          "subtitle": "Заселение в 11:00, 7 декабря. Выселение до 9:00, 9 декабря",
+          "image_url": "https://example.com/hotel1.jpg",
+          "metadata": {"address": "г. Санкт-Петербург, Невский пр-т, д. 57"}
+        }
+      ],
+      "actions": [
+        {
+          "id": "action_open_map",
+          "type": "open_url",
+          "button_text": "Открыть на карте",
+          "url": "https://maps.yandex.ru/..."
+        }
+      ]
+    }
+  ]
 }
 ```
 
-### Накопление на квартиру
+### Пример 2: Savings context
 
 ```json
 {
-  "view_id": "savings_123",
-  "title": "Накопление на квартиру",
-  "widgets": {
-    "before_timeline": [
-      {
-        "id": "widget_progress",
-        "type": "progress",
-        "date": "2025-01-15",
-        "config": {"title": "Прогресс"},
-        "items": [
-          {
-            "id": "progress_1",
-            "primary_text": "Накоплено 1 500 000 из 3 000 000 руб",
-            "metadata": {
-              "current": 1500000,
-              "total": 3000000,
-              "percentage": 50
+  "view_id": "savings_view_123",
+  "title": "Покупка китайской машины",
+  "goal_id": "goal_456",
+  "context": "savings",
+  "widgets": [
+    {
+      "id": "widget_car_selection",
+      "type": "large_card_carousel",
+      "title": "Машины на выбор",
+      "group": "Выбор машины",
+      "group_order": 1,
+      "datetime": "2025-01-15T10:00:00",
+      "order": 1,
+      "items": [
+        {
+          "id": "car_1",
+          "text": "Geely Xingyuan",
+          "subtitle": "субкомпактный электромобиль-хетчбэк, разработанный китайской компанией Geely Auto",
+          "image_url": "https://example.com/car1.jpg",
+          "metadata": {"price": 6500000},
+          "actions": [
+            {
+              "id": "action_calculate_cost",
+              "type": "send_message",
+              "button_text": "Рассчитать стоимость",
+              "message": "Рассчитать стоимость машины Geely Xingyuan"
             }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "widget_progress",
+      "type": "card_with_button",
+      "title": "Прогресс накопления",
+      "group": "План накопления",
+      "group_order": 2,
+      "datetime": "2025-01-15T11:00:00",
+      "order": 2,
+      "items": [
+        {
+          "id": "progress_1",
+          "text": "Накоплено 1 500 000 из 3 000 000 руб",
+          "subtitle": "50% завершено",
+          "metadata": {
+            "current": 1500000,
+            "total": 3000000,
+            "percentage": 50
           }
-        ]
-      }
-    ]
-  }
+        }
+      ],
+      "actions": [
+        {
+          "id": "action_show_details",
+          "type": "send_message",
+          "button_text": "Подробнее",
+          "message": "Показать детали накопления"
+        }
+      ]
+    }
+  ]
 }
 ```
 
+## Рекомендации по реализации
+
+1. **Обработка отсутствующих полей**: Все поля кроме обязательных (`id`, `type`) являются опциональными. Всегда проверяйте наличие полей перед использованием.
+
+2. **Загрузка изображений**: Используйте `image_url` для загрузки изображений. Рекомендуется показывать placeholder во время загрузки.
+
+3. **Обработка действий**: При клике на кнопку действия:
+   - Сначала отправьте `POST /widgets/action` с данными действия
+   - Затем выполните само действие (отправка сообщения или открытие URL)
+
+4. **Группировка**: Группируйте виджеты визуально по полю `group` (например, разделители, заголовки групп).
+
+5. **Таймлайн**: Используйте поле `datetime` для отображения виджетов в хронологическом порядке на таймлайне.
+
+6. **Метаданные**: Поле `metadata` может содержать любые дополнительные данные (цена, рейтинг, координаты и т.д.). Используйте их для дополнительного форматирования отображения.
+
+7. **Иконки**: Поле `icon` содержит эмодзи или текстовое обозначение. Отображайте его рядом с текстом элемента.

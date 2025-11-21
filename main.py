@@ -3,7 +3,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from app.services.aviaradar import update_flights_data, delete_old_flights
-from app.routers import flights, weather, twogis, widgets
+from app.routers import flights, weather, twogis, widgets, openrouter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -57,6 +57,7 @@ app.include_router(flights.router)
 app.include_router(weather.router)
 app.include_router(twogis.router)
 app.include_router(widgets.router)
+app.include_router(openrouter.router)
 
 
 @app.get("/")

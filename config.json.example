@@ -4,6 +4,12 @@
   },
   "twogis": {
     "api_key": "b498620d-1954-4d99-bbaf-37334156a75e"
+  },
+  "openrouter": {
+    "llm_base_url": "https://openrouter.ai/api/v1",
+    "llm_api_key": "sk-or-v1-8ab905d4d1cf2f12c585dce8705a",
+    "llm_model": "x-ai/grok-code-fast-1",
+    "proxy": "http://логин:пароль@45.147.30.166:8000"
   }
 }
 
