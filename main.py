@@ -151,6 +151,41 @@ async def root():
                         "example": "POST /widgets/action"
                     }
                 }
+            },
+            "openrouter": {
+                "description": "Прокси для OpenRouter API",
+                "note": "Все эндпоинты требуют заголовок X-API-Token с токеном из конфигурации",
+                "endpoints": {
+                    "POST /openrouter/chat/completions": {
+                        "description": "Создает completion для списка сообщений чата. Проксирует запрос в OpenRouter API",
+                        "headers": {
+                            "X-API-Token": "Токен для доступа (обязательно)",
+                            "Content-Type": "application/json"
+                        },
+                        "example": "POST /openrouter/chat/completions\nHeaders: X-API-Token: your-token\nBody: {\"model\": \"x-ai/grok-code-fast-1\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello\"}]}"
+                    },
+                    "GET /openrouter/models": {
+                        "description": "Получает список доступных моделей. Проксирует запрос в OpenRouter API",
+                        "headers": {
+                            "X-API-Token": "Токен для доступа (обязательно)"
+                        },
+                        "example": "GET /openrouter/models\nHeaders: X-API-Token: your-token"
+                    },
+                    "POST /openrouter/{path}": {
+                        "description": "Универсальный эндпоинт для проксирования POST запросов в OpenRouter API",
+                        "headers": {
+                            "X-API-Token": "Токен для доступа (обязательно)"
+                        },
+                        "example": "POST /openrouter/chat/completions\nHeaders: X-API-Token: your-token"
+                    },
+                    "GET /openrouter/{path}": {
+                        "description": "Универсальный эндпоинт для проксирования GET запросов в OpenRouter API",
+                        "headers": {
+                            "X-API-Token": "Токен для доступа (обязательно)"
+                        },
+                        "example": "GET /openrouter/models\nHeaders: X-API-Token: your-token"
+                    }
+                }
             }
         }
     }
