@@ -7,7 +7,7 @@
   },
   "openrouter": {
     "llm_base_url": "https://openrouter.ai/api/v1",
-    "llm_api_key": "sk-or-v1-8ab905d4d1cf2f12c585dce8705a",
+    "llm_api_key": "sk-or-v1-8ab905d4d1cf",
     "llm_model": "x-ai/grok-code-fast-1",
     "proxy": "http://логин:пароль@45.147.30.166:8000",
     "api_token": "your-secret-token-here-change-me"
